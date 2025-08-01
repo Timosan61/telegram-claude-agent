@@ -15,7 +15,7 @@ services:
     http_path: /health
   envs:
   - key: PORT
-    value: "8000"
+    value: "8080"
   - key: HOST  
     value: "0.0.0.0"
   - key: DEBUG
