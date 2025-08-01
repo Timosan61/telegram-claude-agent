@@ -5,7 +5,7 @@ services:
   github:
     repo: your-username/telegram-claude-agent
     branch: main
-  run_command: cd backend && python main_minimal.py
+  run_command: python -m backend.main_minimal
   environment_slug: python
   instance_count: 1
   instance_size_slug: basic-xxs
