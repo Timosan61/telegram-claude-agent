@@ -17,8 +17,11 @@ root_dir = Path(__file__).parent
 sys.path.insert(0, str(root_dir))
 
 # Импортируем основное приложение
-from frontend.app import main
-
-if __name__ == "__main__":
+try:
+    from frontend.app import main
     # Запускаем главное приложение
     main()
+except Exception as e:
+    import streamlit as st
+    st.error(f"Ошибка запуска приложения: {e}")
+    st.write("Проверьте логи для подробной информации")
