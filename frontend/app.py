@@ -161,7 +161,14 @@ def show_campaigns_page():
                 with col1:
                     st.write(f"**ID:** {campaign['id']}")
                     st.write(f"**Аккаунт Telegram:** {campaign['telegram_account']}")
-                    st.write(f"**Claude агент:** {campaign['claude_agent_id']}")
+                    
+                    # Показываем информацию об AI провайдере
+                    ai_provider = campaign.get('ai_provider', 'claude')
+                    if ai_provider == 'claude':
+                        st.write(f"**AI провайдер:** 🧠 Claude ({campaign.get('claude_agent_id', 'N/A')})")
+                    else:
+                        st.write(f"**AI провайдер:** 🤖 OpenAI ({campaign.get('openai_model', 'gpt-4')})")
+                    
                     st.write(f"**Чаты:** {', '.join(campaign['telegram_chats'])}")
                     st.write(f"**Ключевые слова:** {', '.join(campaign['keywords'])}")
                     st.write(f"**Контекст сообщений:** {campaign['context_messages_count']}")
@@ -260,14 +267,37 @@ def show_campaign_form(edit_data=None):
             help="По одному ключевому слову на строку"
         )
         
-        # Claude настройки
-        st.subheader("🧠 Настройки Claude")
+        # AI провайдер настройки
+        st.subheader("🧠 Настройки AI провайдера")
         
-        claude_agent_id = st.text_input(
-            "ID Claude агента*",
-            value=edit_data.get('claude_agent_id', '') if is_edit else '',
-            help="Идентификатор или alias Claude Code агента"
+        # Выбор AI провайдера
+        ai_provider = st.selectbox(
+            "AI провайдер*",
+            options=["claude", "openai"],
+            index=0 if not is_edit or edit_data.get('ai_provider', 'claude') == 'claude' else 1,
+            help="Выберите AI модель для генерации ответов"
         )
+        
+        # Настройки Claude (показываем только если выбран Claude)
+        if ai_provider == "claude":
+            claude_agent_id = st.text_input(
+                "ID Claude агента*",
+                value=edit_data.get('claude_agent_id', '') if is_edit else '',
+                help="Идентификатор или alias Claude Code агента"
+            )
+        else:
+            claude_agent_id = None
+        
+        # Настройки OpenAI (показываем только если выбран OpenAI)
+        if ai_provider == "openai":
+            openai_model = st.selectbox(
+                "Модель OpenAI*",
+                options=["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo-preview"],
+                index=0 if not is_edit else ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo-preview"].index(edit_data.get('openai_model', 'gpt-4')),
+                help="Выберите модель OpenAI для генерации ответов"
+            )
+        else:
+            openai_model = "gpt-4"
         
         context_messages_count = st.number_input(
             "Количество контекстных сообщений",
@@ -318,7 +348,17 @@ def show_campaign_form(edit_data=None):
         
         if submit_button:
             # Валидация полей
-            if not all([name, telegram_account, telegram_chats_text, keywords_text, claude_agent_id, system_instruction]):
+            required_fields = [name, telegram_account, telegram_chats_text, keywords_text, system_instruction]
+            
+            # Добавляем специфичные для провайдера поля
+            if ai_provider == "claude" and not claude_agent_id:
+                st.error("❌ ID Claude агента обязателен для провайдера Claude")
+                return
+            elif ai_provider == "openai" and not openai_model:
+                st.error("❌ Модель OpenAI обязательна для провайдера OpenAI") 
+                return
+            
+            if not all(required_fields):
                 st.error("❌ Все обязательные поля должны быть заполнены")
                 return
             
@@ -337,7 +377,9 @@ def show_campaign_form(edit_data=None):
                 "telegram_chats": telegram_chats,
                 "keywords": keywords,
                 "telegram_account": telegram_account,
+                "ai_provider": ai_provider,
                 "claude_agent_id": claude_agent_id,
+                "openai_model": openai_model,
                 "context_messages_count": context_messages_count,
                 "system_instruction": system_instruction,
                 "example_replies": example_replies,

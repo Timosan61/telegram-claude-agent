@@ -19,8 +19,10 @@ class Campaign(Base):
     keywords = Column(JSON, nullable=False)        # Ключевые слова-триггеры
     telegram_account = Column(String(255), nullable=False)  # Аккаунт для ответов
     
-    # Claude агент настройки
-    claude_agent_id = Column(String(255), nullable=False)  # ID или alias Claude агента
+    # AI провайдер настройки
+    ai_provider = Column(String(50), default="claude")  # claude | openai
+    claude_agent_id = Column(String(255), nullable=True)  # ID или alias Claude агента
+    openai_model = Column(String(100), default="gpt-4")   # Модель OpenAI
     context_messages_count = Column(Integer, default=3)    # Кол-во сообщений до триггера
     
     # AI промпты и инструкции
@@ -43,7 +45,9 @@ class Campaign(Base):
             "telegram_chats": self.telegram_chats,
             "keywords": self.keywords,
             "telegram_account": self.telegram_account,
+            "ai_provider": self.ai_provider,
             "claude_agent_id": self.claude_agent_id,
+            "openai_model": self.openai_model,
             "context_messages_count": self.context_messages_count,
             "system_instruction": self.system_instruction,
             "example_replies": self.example_replies,

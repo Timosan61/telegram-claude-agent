@@ -1,12 +1,29 @@
 # 🤖 Telegram Claude Agent
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app-name.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://telegram-claude-agent.streamlit.app/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28.2-FF6B6B.svg)](https://streamlit.io)
 
-Автономный ИИ-агент для мониторинга Telegram-чатов с интеллектуальными ответами через Claude AI.
+Автономный ИИ-агент для мониторинга Telegram-чатов с интеллектуальными ответами через Claude AI и OpenAI.
 
-![Telegram Claude Agent Demo](https://via.placeholder.com/800x400?text=Telegram+Claude+Agent+Demo)
+## 🚀 Быстрый старт
+
+### 1. Попробуйте демо (без установки)
+👉 **[Откройте веб-приложение](https://telegram-claude-agent.streamlit.app/)**
+
+### 2. Запуск за 5 минут
+```bash
+git clone https://github.com/YOUR_USERNAME/telegram-claude-agent.git
+cd telegram-claude-agent
+pip install -r requirements-full.txt
+cp .env.example .env
+# Отредактируйте .env с вашими API ключами
+python run_full_stack.py
+```
+
+**Готово!** Откройте http://127.0.0.1:8501
 
 ## 🌟 Особенности
 

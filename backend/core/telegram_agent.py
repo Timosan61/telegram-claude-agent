@@ -12,6 +12,7 @@ from database.models.base import SessionLocal
 from database.models.campaign import Campaign
 from database.models.log import ActivityLog
 from utils.claude.client import ClaudeClient
+from utils.openai.client import OpenAIClient
 from utils.zep.memory import ZepMemoryManager
 
 
@@ -27,7 +28,22 @@ class TelegramAgent:
         
         # Инициализация клиентов
         self.client = TelegramClient("telegram_agent", self.api_id, self.api_hash)
-        self.claude_client = ClaudeClient()
+        
+        # AI клиенты - инициализируем с обработкой ошибок
+        try:
+            self.claude_client = ClaudeClient()
+            print("✅ Claude Client доступен")
+        except Exception as e:
+            print(f"⚠️ Claude Client недоступен: {e}")
+            self.claude_client = None
+        
+        try:
+            self.openai_client = OpenAIClient()
+            print("✅ OpenAI Client доступен")
+        except Exception as e:
+            print(f"⚠️ OpenAI Client недоступен: {e}")
+            self.openai_client = None
+        
         self.memory_manager = ZepMemoryManager()
         
         # Кэш активных кампаний
@@ -218,9 +234,49 @@ class TelegramAgent:
         trigger_message: Message,
         context_messages: List[Dict]
     ) -> str:
-        """Генерация ответа через Claude Code SDK"""
+        """Генерация ответа через выбранный AI провайдер"""
         
-        # Формирование промпта
+        # Определяем AI провайдера
+        ai_provider = getattr(campaign, 'ai_provider', 'claude')
+        
+        try:
+            if ai_provider == "openai" and self.openai_client:
+                response = await self._generate_with_openai(campaign, trigger_message, context_messages)
+            elif ai_provider == "claude" and self.claude_client:
+                response = await self._generate_with_claude(campaign, trigger_message, context_messages)
+            else:
+                # Fallback на доступный провайдер
+                if self.openai_client:
+                    print(f"⚠️ Fallback на OpenAI (Claude недоступен)")
+                    response = await self._generate_with_openai(campaign, trigger_message, context_messages)
+                elif self.claude_client:
+                    print(f"⚠️ Fallback на Claude (OpenAI недоступен)")
+                    response = await self._generate_with_claude(campaign, trigger_message, context_messages)
+                else:
+                    raise Exception("Ни один AI провайдер не доступен")
+            
+            # Сохранение в память Zep
+            await self.memory_manager.add_interaction(
+                session_id=f"campaign_{campaign.id}_chat_{trigger_message.peer_id}",
+                message=trigger_message.text,
+                response=response
+            )
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Ошибка генерации ответа: {e}")
+            return "Извините, произошла ошибка при генерации ответа."
+    
+    async def _generate_with_claude(
+        self,
+        campaign: Campaign,
+        trigger_message: Message,
+        context_messages: List[Dict]
+    ) -> str:
+        """Генерация ответа через Claude"""
+        
+        # Формирование промпта для Claude
         context_text = "\n".join([f"[{msg['date']}] {msg['text']}" for msg in context_messages])
         
         prompt = f"""
@@ -236,20 +292,34 @@ class TelegramAgent:
 Сгенерируй подходящий ответ на основе контекста и системной инструкции.
 """
         
-        # Получение ответа от Claude
-        response = await self.claude_client.generate_response(
+        return await self.claude_client.generate_response(
             prompt,
             campaign.claude_agent_id
         )
+    
+    async def _generate_with_openai(
+        self,
+        campaign: Campaign,
+        trigger_message: Message,
+        context_messages: List[Dict]
+    ) -> str:
+        """Генерация ответа через OpenAI"""
         
-        # Сохранение в память Zep
-        await self.memory_manager.add_interaction(
-            session_id=f"campaign_{campaign.id}_chat_{trigger_message.peer_id}",
-            message=trigger_message.text,
-            response=response
+        # Используем специальный метод форматирования для OpenAI
+        prompt = self.openai_client.format_telegram_context(
+            system_instruction=campaign.system_instruction,
+            context_messages=context_messages,
+            trigger_message=trigger_message.text,
+            example_replies=campaign.example_replies
         )
         
-        return response
+        # Получаем модель OpenAI из кампании
+        openai_model = getattr(campaign, 'openai_model', 'gpt-4')
+        
+        return await self.openai_client.generate_response(
+            prompt,
+            model=openai_model
+        )
     
     async def send_response(self, original_message: Message, response: str):
         """Отправка ответа в чат"""
