@@ -1,0 +1,32 @@
+name: telegram-claude-agent-backend
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: your-username/telegram-claude-agent
+    branch: main
+  run_command: cd backend && python main_minimal.py
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8000
+  routes:
+  - path: /
+  health_check:
+    http_path: /health
+  envs:
+  - key: PORT
+    value: "8000"
+  - key: HOST  
+    value: "0.0.0.0"
+  - key: DEBUG
+    value: "False"
+  - key: OPENAI_API_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: DATABASE_URL
+    value: "sqlite:///./campaigns.db"
+  - key: API_HOST
+    value: "0.0.0.0"
+  - key: API_PORT
+    value: "8000"

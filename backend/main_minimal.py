@@ -76,13 +76,17 @@ app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
 if __name__ == "__main__":
     import uvicorn
     
-    host = os.getenv("API_HOST", "127.0.0.1")
-    port = int(os.getenv("API_PORT", 8000))
+    # Поддержка как локального так и облачного развертывания
+    host = os.getenv("HOST", os.getenv("API_HOST", "127.0.0.1"))
+    port = int(os.getenv("PORT", os.getenv("API_PORT", 8000)))
     debug = os.getenv("DEBUG", "True").lower() == "true"
+    
+    print(f"🚀 Запуск сервера на {host}:{port}")
+    print(f"🔧 Режим отладки: {debug}")
     
     uvicorn.run(
         "main_minimal:app",
-        host=host,
+        host=host, 
         port=port,
         reload=debug,
         log_level="info"
