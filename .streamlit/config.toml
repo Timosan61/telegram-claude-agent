@@ -1,0 +1,48 @@
+[global]
+# Режим разработки
+developmentMode = false
+
+# Показывать кнопку меню
+showMainMenu = true
+
+# Показывать предупреждения
+showWarningOnDirectExecution = false
+
+[server]
+# Порт по умолчанию
+port = 8501
+
+# Заголовки
+headless = false
+
+# Разрешить загрузку файлов
+maxUploadSize = 200
+
+# Включить CORS для локальной разработки
+enableCORS = false
+
+# Включить XSS защиту
+enableXsrfProtection = true
+
+[browser]
+# Автоматически открывать браузер
+gatherUsageStats = false
+
+[theme]
+# Тема приложения
+primaryColor = "#FF6B6B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[client]
+# Показывать предупреждения
+showErrorDetails = false
+
+[runner]
+# Быстрый перезапуск
+fastReruns = true
+
+# Перезапуск после изменений
+postScriptGC = true

@@ -1,0 +1,31 @@
+# Core Framework for Streamlit Cloud
+streamlit==1.28.2
+python-dotenv==1.0.0
+
+# Database (SQLite for simplicity in cloud)
+sqlalchemy==2.0.23
+
+# AI Integration
+anthropic==0.7.8
+
+# HTTP & API
+requests==2.31.0
+httpx==0.25.2
+
+# Data Processing
+pandas==2.1.3
+
+# Utilities
+python-dateutil==2.8.2
+
+# Note: For full backend functionality, also install:
+# fastapi==0.104.1
+# uvicorn[standard]==0.24.0
+# telethon==1.32.1
+# cryptg==0.4.0
+# aiohttp==3.9.1
+# zep-python==1.0.0
+# numpy==1.25.2
+# pydantic==2.5.0
+# asyncio-throttle==1.0.2
+# pytz==2023.3
