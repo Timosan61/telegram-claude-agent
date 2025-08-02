@@ -17,4 +17,3 @@ telethon==1.30.3
 
 # Basic utilities
 python-dateutil==2.8.2
-pydantic==2.5.0
