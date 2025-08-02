@@ -46,7 +46,7 @@ async def get_active_chats(db: Session = Depends(get_db)):
                         "campaign_count": sum(1 for c in campaigns if chat_id in c.telegram_chats),
                         "last_activity": latest_log.timestamp.isoformat() if latest_log else None,
                         "last_message": latest_log.original_message[:100] + "..." if latest_log and latest_log.original_message and len(latest_log.original_message) > 100 else (latest_log.original_message if latest_log else None),
-                        "is_connected": telegram_agent.is_connected() if telegram_agent else False
+                        "is_connected": (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected) if telegram_agent else False
                     }
                     active_chats.append(chat_info)
         
@@ -65,7 +65,7 @@ async def get_chat_messages(
 ):
     """Получение сообщений из чата"""
     try:
-        if not telegram_agent or not telegram_agent.is_connected():
+        if not telegram_agent or not (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected):
             raise HTTPException(status_code=503, detail="Telegram агент не подключен")
         
         # Получаем сообщения через Telegram API
@@ -131,7 +131,7 @@ async def send_message_to_chat(
 ):
     """Отправка сообщения в чат от имени бота"""
     try:
-        if not telegram_agent or not telegram_agent.is_connected():
+        if not telegram_agent or not (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected):
             raise HTTPException(status_code=503, detail="Telegram агент не подключен")
         
         text = message_data.get("text", "").strip()
@@ -174,7 +174,7 @@ async def send_message_to_chat(
 async def get_chat_info(chat_id: str):
     """Получение информации о чате"""
     try:
-        if not telegram_agent or not telegram_agent.is_connected():
+        if not telegram_agent or not (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected):
             raise HTTPException(status_code=503, detail="Telegram агент не подключен")
         
         chat_entity = await telegram_agent.client.get_entity(chat_id)
@@ -232,7 +232,7 @@ async def trigger_manual_response(
 ):
     """Принудительная генерация ответа для сообщения"""
     try:
-        if not telegram_agent or not telegram_agent.is_connected():
+        if not telegram_agent or not (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected):
             raise HTTPException(status_code=503, detail="Telegram агент не подключен")
         
         message_id = trigger_data.get("message_id")
@@ -283,7 +283,7 @@ async def log_manual_message(
     try:
         # Получаем информацию о чате
         chat_title = "Unknown"
-        if telegram_agent and telegram_agent.is_connected():
+        if telegram_agent and (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected):
             try:
                 entity = await telegram_agent.client.get_entity(chat_id)
                 if hasattr(entity, 'title'):

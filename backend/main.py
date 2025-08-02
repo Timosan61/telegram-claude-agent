@@ -82,7 +82,7 @@ async def health_check():
     
     return {
         "status": "healthy",
-        "telegram_connected": telegram_agent.is_connected() if telegram_agent else False,
+        "telegram_connected": (telegram_agent.is_connected() if hasattr(telegram_agent, 'is_connected') and callable(telegram_agent.is_connected) else telegram_agent.is_connected) if telegram_agent else False,
         "database": "connected"
     }
 
