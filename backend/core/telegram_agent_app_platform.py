@@ -8,6 +8,7 @@ from datetime import datetime
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import Message, User, Chat, Channel
+from telethon.tl.functions.channels import GetFullChannelRequest
 from sqlalchemy.orm import Session
 
 from database.models.base import SessionLocal
@@ -89,6 +90,9 @@ class TelegramAgentAppPlatform:
         self.last_campaign_update = 0
         self.campaign_cache_ttl = int(os.getenv("CACHE_TTL", "60"))
         
+        # Кэш групп обсуждений каналов
+        self.channel_discussion_groups: Dict[str, int] = {}
+        
         # Статус подключения
         self.is_connected = False
         self.is_authorized = False
@@ -121,6 +125,38 @@ class TelegramAgentAppPlatform:
         print("⚠️ Сессия в переменных окружения не найдена")
         return None
     
+    async def get_channel_discussion_group(self, channel_identifier: str) -> Optional[int]:
+        """Получение ID группы обсуждений канала"""
+        try:
+            # Проверяем кэш
+            if channel_identifier in self.channel_discussion_groups:
+                return self.channel_discussion_groups[channel_identifier]
+            
+            print(f"🔍 Получение информации о канале: {channel_identifier}")
+            
+            # Получаем объект канала
+            channel = await self.client.get_entity(channel_identifier)
+            
+            # Получаем полную информацию о канале
+            full_channel = await self.client(GetFullChannelRequest(channel))
+            
+            # Проверяем наличие linked_chat_id (группа обсуждений)
+            if hasattr(full_channel.full_chat, 'linked_chat_id') and full_channel.full_chat.linked_chat_id:
+                discussion_group_id = full_channel.full_chat.linked_chat_id
+                
+                # Кэшируем результат
+                self.channel_discussion_groups[channel_identifier] = discussion_group_id
+                
+                print(f"✅ Найдена группа обсуждений для {channel_identifier}: {discussion_group_id}")
+                return discussion_group_id
+            else:
+                print(f"⚠️ У канала {channel_identifier} нет группы обсуждений")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Ошибка получения группы обсуждений для {channel_identifier}: {e}")
+            return None
+    
     async def start(self):
         """Запуск агента"""
         try:
@@ -144,6 +180,9 @@ class TelegramAgentAppPlatform:
                 
                 # Загрузка активных кампаний
                 await self.update_campaigns()
+                
+                # Определение групп обсуждений для каналов в кампаниях
+                await self.discover_discussion_groups()
                 
                 print("🚀 Telegram Agent запущен и готов к работе!")
                 return True
@@ -170,7 +209,7 @@ class TelegramAgentAppPlatform:
         async def handle_edited_message(event):
             await self._handle_message(event)
         
-        print("✅ Обработчики событий настроены (ALL incoming messages)")
+        print("✅ Обработчики событий настроены (ALL incoming messages + comments)")
     
     async def _handle_message(self, event):
         """Обработка нового сообщения"""
@@ -185,13 +224,19 @@ class TelegramAgentAppPlatform:
             print(f"   📝 Текст: '{message.text or 'None'}'")
             print(f"   💬 Чат: {getattr(chat, 'title', getattr(chat, 'username', 'Unknown'))} (ID: {getattr(chat, 'id', 'Unknown')})")
             print(f"   👤 От: {message.sender_id}")
+            print(f"   🔗 Reply to: {getattr(message, 'reply_to_msg_id', 'None')}")
             print(f"   📊 Активных кампаний: {len(self.active_campaigns)}")
+            
+            # Проверка является ли это комментарием
+            is_comment = hasattr(message, 'reply_to_msg_id') and message.reply_to_msg_id is not None
+            if is_comment:
+                print(f"   💬 КОММЕНТАРИЙ обнаружен! Reply to message ID: {message.reply_to_msg_id}")
             
             # Проверяем, есть ли активные кампании для этого чата
             relevant_campaigns = []
             for campaign in self.active_campaigns:
                 print(f"   🎯 Проверяем кампанию: {campaign.name}")
-                if self._is_message_relevant(message, chat, campaign):
+                if self._is_message_relevant(message, chat, campaign, is_comment):
                     relevant_campaigns.append(campaign)
                     print(f"   ✅ Кампания {campaign.name} релевантна!")
                 else:
@@ -202,12 +247,12 @@ class TelegramAgentAppPlatform:
             
             # Обработка сообщения для каждой релевантной кампании
             for campaign in relevant_campaigns:
-                await self._process_message_for_campaign(message, chat, campaign)
+                await self._process_message_for_campaign(message, chat, campaign, is_comment)
                 
         except Exception as e:
             print(f"❌ Ошибка обработки сообщения: {e}")
     
-    def _is_message_relevant(self, message: Message, chat, campaign: Campaign) -> bool:
+    def _is_message_relevant(self, message: Message, chat, campaign: Campaign, is_comment: bool = False) -> bool:
         """Проверка релевантности сообщения для кампании"""
         try:
             # DEBUG: Подробное логирование проверки релевантности
@@ -217,17 +262,21 @@ class TelegramAgentAppPlatform:
             print(f"         💬 Chat ID: {getattr(chat, 'id', 'None')}")
             print(f"         🏷️ Chat username: {getattr(chat, 'username', 'None')}")
             print(f"         📝 Message text: '{message.text or 'None'}'")
+            print(f"         💬 Is comment: {is_comment}")
+            
+            # Логика проверки чата
+            chat_matches = False
+            
+            # Получаем target_chats
+            target_chats = campaign.telegram_chats if isinstance(campaign.telegram_chats, list) else campaign.telegram_chats.split(',')
+            print(f"         🎯 Обработанные target_chats: {target_chats}")
             
             # Проверка по ID чата/канала и username
             if hasattr(chat, 'id') or (hasattr(chat, 'username') and chat.username):
-                # campaign.telegram_chats уже список (JSON), не строка
-                target_chats = campaign.telegram_chats if isinstance(campaign.telegram_chats, list) else campaign.telegram_chats.split(',')
-                print(f"         🎯 Обработанные target_chats: {target_chats}")
-                
                 # Проверка по ID чата
                 if hasattr(chat, 'id') and str(chat.id) in target_chats:
                     print(f"         ✅ Совпадение по Chat ID: {chat.id}")
-                    return True
+                    chat_matches = True
                     
                 # Проверка по username чата (с @ и без @)
                 if hasattr(chat, 'username') and chat.username:
@@ -236,7 +285,25 @@ class TelegramAgentAppPlatform:
                     for target in target_chats:
                         if target.lower() in username_variants:
                             print(f"         ✅ Совпадение по username: {target} in {username_variants}")
-                            return True
+                            chat_matches = True
+                            break
+            
+            # Дополнительная проверка для групп обсуждений
+            if not chat_matches and hasattr(chat, 'id'):
+                chat_id = getattr(chat, 'id', None)
+                # Проверяем, является ли этот чат группой обсуждений одного из каналов
+                for target_chat in target_chats:
+                    if target_chat.startswith('@'):
+                        discussion_group_id = self.channel_discussion_groups.get(target_chat)
+                        if discussion_group_id and chat_id == discussion_group_id:
+                            print(f"         ✅ Совпадение по discussion group: {chat_id} для канала {target_chat}")
+                            chat_matches = True
+                            break
+            
+            # Если чат не подходит, сразу отклоняем
+            if not chat_matches:
+                print(f"         ❌ Чат не соответствует кампании")
+                return False
             
             # Проверка по ключевым словам
             if campaign.keywords and message.text:
@@ -269,7 +336,7 @@ class TelegramAgentAppPlatform:
             print(f"❌ Ошибка проверки релевантности: {e}")
             return False
     
-    async def _process_message_for_campaign(self, message: Message, chat, campaign: Campaign):
+    async def _process_message_for_campaign(self, message: Message, chat, campaign: Campaign, is_comment: bool = False):
         """Обработка сообщения для конкретной кампании"""
         try:
             # Подготовка контекста
@@ -280,7 +347,9 @@ class TelegramAgentAppPlatform:
                 'chat_id': getattr(chat, 'id', 'Unknown'),
                 'sender_id': message.sender_id,
                 'date': message.date,
-                'campaign': campaign.name
+                'campaign': campaign.name,
+                'is_comment': is_comment,
+                'reply_to_msg_id': getattr(message, 'reply_to_msg_id', None) if is_comment else None
             }
             
             # Генерация ответа через AI
@@ -288,7 +357,7 @@ class TelegramAgentAppPlatform:
             
             if response:
                 # Отправка автоответа
-                await self._send_response(message, response, campaign)
+                await self._send_response(message, response, campaign, is_comment)
             
             # Логирование активности
             await self._log_activity(context, response, campaign)
@@ -339,15 +408,42 @@ class TelegramAgentAppPlatform:
             print(f"❌ Ошибка генерации AI ответа: {e}")
             return None
     
-    async def _send_response(self, original_message: Message, response: str, campaign: Campaign):
+    async def _send_response(self, original_message: Message, response: str, campaign: Campaign, is_comment: bool = False):
         """Отправка ответа"""
         try:
-            # Отправляем ответ на сообщение (самый простой способ)
-            await original_message.reply(response)
-            print(f"✅ Ответ отправлен для кампании: {campaign.name}")
+            if is_comment:
+                # Для комментариев отправляем ответ в том же чате с reply_to
+                print(f"💬 Отправка ответа на комментарий (reply_to={original_message.id})")
+                await self.client.send_message(
+                    entity=original_message.chat_id,
+                    message=response,
+                    reply_to=original_message.id
+                )
+                print(f"✅ Ответ на комментарий отправлен для кампании: {campaign.name}")
+            else:
+                # Для обычных сообщений используем reply
+                print(f"📝 Отправка обычного ответа")
+                await original_message.reply(response)
+                print(f"✅ Обычный ответ отправлен для кампании: {campaign.name}")
             
         except Exception as e:
-            print(f"❌ Ошибка отправки ответа: {e}")
+            print(f"❌ Ошибка отправки ответа (is_comment={is_comment}): {e}")
+            
+            # Fallback: попробуем альтернативный способ отправки
+            try:
+                if is_comment:
+                    # Альтернативный способ для комментариев
+                    await original_message.reply(response)
+                    print(f"✅ Альтернативная отправка ответа на комментарий успешна")
+                else:
+                    # Альтернативный способ для обычных сообщений
+                    await self.client.send_message(
+                        entity=original_message.chat_id,
+                        message=response
+                    )
+                    print(f"✅ Альтернативная отправка обычного ответа успешна")
+            except Exception as fallback_error:
+                print(f"❌ Альтернативная отправка также не удалась: {fallback_error}")
     
     async def _log_activity(self, context: Dict, response: Optional[str], campaign: Campaign):
         """Логирование активности"""
@@ -364,12 +460,18 @@ class TelegramAgentAppPlatform:
                         trigger_keyword = keyword.strip()
                         break
             
+            # Определяем тип сообщения для логирования
+            message_type = "comment" if context.get('is_comment') else "message"
+            chat_title = context.get('chat_name', 'Unknown')
+            if context.get('is_comment'):
+                chat_title += " (Discussion Group)"
+            
             log_entry = ActivityLog(
                 campaign_id=campaign.id,
                 chat_id=str(context['chat_id']),
-                chat_title=context.get('chat_name', 'Unknown'),
+                chat_title=chat_title,
                 message_id=getattr(context.get('message_obj'), 'id', 0),
-                trigger_keyword=trigger_keyword,
+                trigger_keyword=f"{trigger_keyword} ({message_type})",
                 original_message=context['message'][:1000] if context.get('message') else '',
                 agent_response=response[:1000] if response else 'No response',
                 status='sent' if response else 'failed'
@@ -403,6 +505,35 @@ class TelegramAgentAppPlatform:
             
         except Exception as e:
             print(f"❌ Ошибка обновления кампаний: {e}")
+    
+    async def discover_discussion_groups(self):
+        """Обнаружение групп обсуждений для всех каналов в кампаниях"""
+        try:
+            print("🔍 Обнаружение групп обсуждений для каналов...")
+            
+            # Собираем все уникальные каналы из кампаний
+            all_channels = set()
+            for campaign in self.active_campaigns:
+                if campaign.telegram_chats:
+                    for chat in campaign.telegram_chats:
+                        # Проверяем, является ли это каналом (начинается с @)
+                        if isinstance(chat, str) and chat.startswith('@'):
+                            all_channels.add(chat)
+            
+            print(f"📋 Найдено каналов для проверки: {list(all_channels)}")
+            
+            # Получаем группы обсуждений для каждого канала
+            for channel in all_channels:
+                discussion_group_id = await self.get_channel_discussion_group(channel)
+                if discussion_group_id:
+                    print(f"✅ Канал {channel} → Группа обсуждений: {discussion_group_id}")
+                else:
+                    print(f"⚠️ Канал {channel} не имеет группы обсуждений")
+            
+            print(f"📊 Всего найдено групп обсуждений: {len(self.channel_discussion_groups)}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка обнаружения групп обсуждений: {e}")
     
     async def get_status(self) -> Dict:
         """Получение статуса агента"""
