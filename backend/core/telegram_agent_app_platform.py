@@ -71,10 +71,12 @@ class TelegramAgentAppPlatform:
             print("⚠️ Claude Client отключен - используем только OpenAI")
         
         try:
+            print("🔄 Инициализация OpenAI клиента...")
             self.openai_client = OpenAIClient()
-            print("✅ OpenAI Client доступен")
+            print("✅ OpenAI Client успешно инициализирован")
         except Exception as e:
-            print(f"⚠️ OpenAI Client недоступен: {e}")
+            print(f"❌ OpenAI Client недоступен: {e}")
+            print(f"📋 Детали ошибки: {type(e).__name__}: {str(e)}")
             self.openai_client = None
         
         # Инициализация менеджера памяти (опционально)
@@ -576,6 +578,15 @@ class TelegramAgentAppPlatform:
     
     async def get_status(self) -> Dict:
         """Получение статуса агента"""
+        # Test OpenAI client if it exists
+        openai_working = False
+        if self.openai_client:
+            try:
+                # Simple test
+                openai_working = self.openai_client.test_connection()
+            except:
+                openai_working = False
+        
         return {
             "connected": self.is_connected,
             "authorized": self.is_authorized,
@@ -583,6 +594,7 @@ class TelegramAgentAppPlatform:
             "session_type": "StringSession" if self.session_string else "FileSession",
             "ai_clients": {
                 "openai": self.openai_client is not None,
+                "openai_working": openai_working,
                 "claude": self.claude_client is not None
             }
         }
