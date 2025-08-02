@@ -209,7 +209,13 @@ class TelegramAgentAppPlatform:
         async def handle_edited_message(event):
             await self._handle_message(event)
         
-        print("✅ Обработчики событий настроены (ALL incoming messages + comments)")
+        # Дополнительный debug обработчик для ВСЕХ событий
+        @self.client.on(events.Raw)
+        async def handle_raw_event(event):
+            # Только логируем, не обрабатываем
+            print(f"🔍 RAW EVENT: {type(event)} from chat: {getattr(event, 'chat_id', 'Unknown')}")
+        
+        print("✅ Обработчики событий настроены (ALL incoming messages + comments + raw events)")
     
     async def _handle_message(self, event):
         """Обработка нового сообщения"""
