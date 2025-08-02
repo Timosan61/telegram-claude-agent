@@ -15,7 +15,14 @@ from database.models.campaign import Campaign
 from database.models.log import ActivityLog
 from utils.claude.client import ClaudeClient
 from utils.openai.client import OpenAIClient
-from utils.zep.memory import ZepMemoryManager
+
+# Опциональный импорт ZepMemoryManager
+try:
+    from utils.zep.memory import ZepMemoryManager
+    ZEP_AVAILABLE = True
+except ImportError:
+    ZEP_AVAILABLE = False
+    print("⚠️ ZepMemoryManager недоступен - работаем без управления памятью")
 
 
 class TelegramAgentAppPlatform:
@@ -57,7 +64,13 @@ class TelegramAgentAppPlatform:
             print(f"⚠️ OpenAI Client недоступен: {e}")
             self.openai_client = None
         
-        self.memory_manager = ZepMemoryManager()
+        # Инициализация менеджера памяти (опционально)
+        if ZEP_AVAILABLE:
+            self.memory_manager = ZepMemoryManager()
+            print("✅ ZepMemoryManager инициализирован")
+        else:
+            self.memory_manager = None
+            print("⚠️ Работаем без менеджера памяти")
         
         # Кэш активных кампаний
         self.active_campaigns: List[Campaign] = []
