@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.models.base import get_db, create_tables
 from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
+from backend.api.chats import router as chats_router, set_telegram_agent
 from backend.core.telegram_agent import TelegramAgent
 
 # Загрузка переменных окружения
@@ -49,6 +50,9 @@ async def startup_event():
     telegram_agent = TelegramAgent()
     await telegram_agent.initialize()
     
+    # Передаем агента в роутер чатов
+    set_telegram_agent(telegram_agent)
+    
     print("🚀 Telegram Claude Agent запущен!")
 
 
@@ -84,8 +88,9 @@ async def health_check():
 
 
 # Подключение роутеров
-app.include_router(campaigns_router, prefix="/api/campaigns", tags=["campaigns"])
-app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
+app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
+app.include_router(logs_router, prefix="/logs", tags=["logs"])
+app.include_router(chats_router, prefix="/chats", tags=["chats"])
 
 
 if __name__ == "__main__":

@@ -109,7 +109,7 @@ def main():
     st.sidebar.title("Навигация")
     page = st.sidebar.selectbox(
         "Выберите страницу",
-        ["📋 Кампании", "📊 Статистика", "📝 Логи активности", "⚙️ Настройки"]
+        ["📋 Кампании", "💬 Чаты", "📊 Статистика", "📝 Логи активности", "⚙️ Настройки"]
     )
     
     # Отображение выбранной страницы
@@ -118,6 +118,11 @@ def main():
             show_campaigns_page()
         else:
             show_demo_campaigns_page()
+    elif page == "💬 Чаты":
+        if server_status:
+            show_chats_page()
+        else:
+            show_demo_chats_page()
     elif page == "📊 Статистика":
         if server_status:
             show_statistics_page()
@@ -637,54 +642,254 @@ def show_settings_page():
     
     # Статус системы
     server_status = check_server_status()
-    if server_status:
-        st.subheader("🔧 Статус системы")
+    
+    # Вкладки для организации настроек
+    tab1, tab2, tab3, tab4 = st.tabs(["🔧 Статус", "🌐 Конфигурация", "🔑 API Keys", "📊 Экспорт"])
+    
+    with tab1:
+        st.subheader("Статус компонентов")
         
-        status_data = {
-            "Компонент": ["API Сервер", "База данных", "Telegram", "Claude"],
-            "Статус": [
-                "🟢 Работает",
-                "🟢 Подключена" if server_status.get("database") == "connected" else "🔴 Отключена",
-                "🟢 Подключен" if server_status.get("telegram_connected") else "🔴 Отключен",
-                "🟢 Доступен"  # Предполагаем, что Claude доступен если API работает
-            ]
-        }
+        if server_status:
+            # Детальный статус компонентов
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                api_status = "🟢 Работает" if server_status.get("status") == "healthy" else "🔴 Ошибка"
+                st.metric("API Сервер", api_status)
+            
+            with col2:
+                db_status = "🟢 Подключена" if server_status.get("database") == "connected" else "🔴 Отключена"
+                st.metric("База данных", db_status)
+            
+            with col3:
+                telegram_status = "🟢 Подключен" if server_status.get("telegram_connected") else "🔴 Отключен"
+                st.metric("Telegram", telegram_status)
+            
+            with col4:
+                # Проверяем AI провайдеры через статистику
+                ai_status = "🟢 Доступен" if server_status.get("status") == "healthy" else "🟡 Частично"
+                st.metric("AI Провайдеры", ai_status)
+            
+            # Дополнительная информация
+            st.subheader("Дополнительная информация")
+            
+            info_data = {
+                "Параметр": [
+                    "URL Backend API",
+                    "Режим работы",
+                    "Версия API",
+                    "Время последней проверки"
+                ],
+                "Значение": [
+                    API_BASE_URL,
+                    "Облачный" if "127.0.0.1" not in API_BASE_URL else "Локальный",
+                    "1.0.0",
+                    datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+                ]
+            }
+            
+            df_info = pd.DataFrame(info_data)
+            st.table(df_info)
+            
+        else:
+            st.error("❌ Backend сервер недоступен")
+            st.write(f"**Попытка подключения к:** `{API_BASE_URL}`")
+            
+            # Предложения по решению проблем
+            st.subheader("Возможные решения:")
+            st.markdown("""
+            1. **Проверьте URL backend сервера** в настройках Streamlit Cloud
+            2. **Убедитесь, что backend сервер запущен** и доступен
+            3. **Проверьте настройки CORS** на backend сервере
+            4. **Проверьте логи** backend сервера на наличие ошибок
+            """)
         
-        df_status = pd.DataFrame(status_data)
-        st.table(df_status)
-    
-    # Настройки конфигурации
-    st.subheader("🔧 Конфигурация")
-    
-    with st.expander("API Настройки"):
-        st.code(f"""
-        API_BASE_URL = "{API_BASE_URL}"
-        Документация API: {API_BASE_URL}/docs
-        Redoc: {API_BASE_URL}/redoc
-        """, language="python")
-    
-    with st.expander("Переменные окружения"):
-        st.info("""
-        Убедитесь, что следующие переменные настроены в .env файле:
-        - ANTHROPIC_API_KEY
-        - TELEGRAM_API_ID
-        - TELEGRAM_API_HASH
-        - TELEGRAM_PHONE
-        - ZEP_API_KEY (опционально)
-        """)
-    
-    # Действия системы
-    st.subheader("🔄 Действия")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔄 Обновить статус"):
+        # Кнопка обновления статуса
+        if st.button("🔄 Обновить статус", type="primary"):
             st.rerun()
     
-    with col2:
-        if st.button("📊 Экспорт данных"):
-            st.info("Функция экспорта будет добавлена в следующих версиях")
+    with tab2:
+        st.subheader("Конфигурация подключений")
+        
+        # Конфигурация API
+        with st.expander("🌐 Backend API", expanded=True):
+            st.code(f"""
+# Текущая конфигурация
+API_BASE_URL = "{API_BASE_URL}"
+
+# Доступные эндпоинты:
+- Документация: {API_BASE_URL}/docs
+- ReDoc: {API_BASE_URL}/redoc
+- Health Check: {API_BASE_URL}/health
+- Кампании: {API_BASE_URL}/campaigns/
+- Логи: {API_BASE_URL}/logs/
+- Чаты: {API_BASE_URL}/chats/active
+            """, language="yaml")
+        
+        # Настройки Streamlit Cloud
+        with st.expander("☁️ Streamlit Cloud"):
+            st.markdown("""
+            **Настройка в Streamlit Cloud:**
+            
+            1. Перейдите в **Settings → Secrets**
+            2. Добавьте следующую строку:
+            ```toml
+            BACKEND_API_URL = "https://your-backend-server.herokuapp.com"
+            ```
+            3. Замените URL на актуальный адрес вашего backend сервера
+            4. Сохраните и перезапустите приложение
+            """)
+        
+        # Локальная разработка
+        with st.expander("🏠 Локальная разработка"):
+            st.markdown("""
+            **Для локального запуска:**
+            
+            1. Создайте файл `.streamlit/secrets.toml`
+            2. Добавьте настройки:
+            ```toml
+            BACKEND_API_URL = "http://127.0.0.1:8000"
+            ```
+            3. Запустите backend сервер: `python backend/main.py`
+            4. Запустите Streamlit: `streamlit run streamlit_app.py`
+            """)
+    
+    with tab3:
+        st.subheader("Управление API ключами")
+        
+        # Отображение настроенных провайдеров
+        st.markdown("**Статус AI провайдеров:**")
+        
+        # Получаем информацию о кампаниях для понимания используемых провайдеров
+        campaigns_data = make_api_request("/campaigns/") if server_status else None
+        
+        if campaigns_data:
+            openai_campaigns = len([c for c in campaigns_data if c.get('ai_provider') == 'openai'])
+            claude_campaigns = len([c for c in campaigns_data if c.get('ai_provider') == 'claude'])
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.metric(
+                    "🤖 OpenAI", 
+                    f"{openai_campaigns} кампаний",
+                    delta="Основной провайдер" if openai_campaigns > 0 else None
+                )
+            
+            with col2:
+                st.metric(
+                    "🧠 Claude", 
+                    f"{claude_campaigns} кампаний",
+                    delta="Доступен" if claude_campaigns > 0 else None
+                )
+        
+        # Инструкции по настройке
+        with st.expander("🔑 Настройка OpenAI API"):
+            st.markdown("""
+            1. Получите API ключ на [platform.openai.com](https://platform.openai.com/api-keys)
+            2. В Streamlit Cloud добавьте в Secrets:
+            ```toml
+            OPENAI_API_KEY = "sk-proj-your-key-here"
+            ```
+            3. Доступные модели: gpt-4, gpt-3.5-turbo, gpt-4-turbo-preview
+            """)
+        
+        with st.expander("🧠 Настройка Claude API"):
+            st.markdown("""
+            1. Получите API ключ на [console.anthropic.com](https://console.anthropic.com)
+            2. В Streamlit Cloud добавьте в Secrets:
+            ```toml
+            ANTHROPIC_API_KEY = "sk-ant-api03-your-key-here"
+            ```
+            3. Укажите Claude Agent ID в кампаниях
+            """)
+        
+        with st.expander("📡 Настройка Telegram API"):
+            st.markdown("""
+            1. Получите API ID и Hash на [my.telegram.org/apps](https://my.telegram.org/apps)
+            2. В Streamlit Cloud добавьте в Secrets:
+            ```toml
+            TELEGRAM_API_ID = "12345678"
+            TELEGRAM_API_HASH = "your-api-hash-here"
+            TELEGRAM_PHONE = "+1234567890"
+            ```
+            **Внимание:** Эти данные нужны только для backend сервера
+            """)
+    
+    with tab4:
+        st.subheader("Экспорт и резервное копирование")
+        
+        # Экспорт кампаний
+        if st.button("📥 Экспорт кампаний", help="Сохранить все кампании в JSON файл"):
+            if server_status:
+                campaigns_data = make_api_request("/campaigns/")
+                if campaigns_data:
+                    # Создаем JSON файл для скачивания
+                    export_data = {
+                        "export_date": datetime.now().isoformat(),
+                        "total_campaigns": len(campaigns_data),
+                        "campaigns": campaigns_data
+                    }
+                    
+                    json_str = json.dumps(export_data, ensure_ascii=False, indent=2)
+                    
+                    st.download_button(
+                        label="💾 Скачать кампании (JSON)",
+                        data=json_str,
+                        file_name=f"telegram_agent_campaigns_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                        mime="application/json"
+                    )
+                    
+                    st.success(f"✅ Готово к скачиванию: {len(campaigns_data)} кампаний")
+                else:
+                    st.error("❌ Не удалось получить данные кампаний")
+            else:
+                st.warning("⚠️ Backend недоступен для экспорта")
+        
+        # Экспорт логов
+        if st.button("📊 Экспорт логов активности", help="Сохранить логи за последние 7 дней"):
+            if server_status:
+                logs_data = make_api_request("/logs/?hours_back=168")  # 7 дней
+                if logs_data:
+                    # Подготавливаем данные для CSV
+                    logs_for_export = []
+                    for log in logs_data:
+                        logs_for_export.append({
+                            "Дата": log['timestamp'],
+                            "Чат": log['chat_title'],
+                            "ID чата": log['chat_id'],
+                            "Ключевое слово": log['trigger_keyword'],
+                            "Исходное сообщение": log['original_message'],
+                            "Ответ агента": log['agent_response'],
+                            "Статус": log['status'],
+                            "Время обработки (мс)": log.get('processing_time_ms', 0)
+                        })
+                    
+                    df_export = pd.DataFrame(logs_for_export)
+                    csv_data = df_export.to_csv(index=False, encoding='utf-8-sig')
+                    
+                    st.download_button(
+                        label="💾 Скачать логи (CSV)",
+                        data=csv_data,
+                        file_name=f"telegram_agent_logs_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv"
+                    )
+                    
+                    st.success(f"✅ Готово к скачиванию: {len(logs_data)} записей")
+                else:
+                    st.error("❌ Не удалось получить логи")
+            else:
+                st.warning("⚠️ Backend недоступен для экспорта")
+        
+        # Информация о резервном копировании
+        st.subheader("📋 О резервном копировании")
+        st.info("""
+        **Рекомендации:**
+        - Экспортируйте кампании перед важными изменениями
+        - Сохраняйте логи для анализа эффективности
+        - Храните резервные копии в безопасном месте
+        - Регулярно проверяйте работоспособность экспорта
+        """)
 
 
 def show_demo_campaigns_page():
@@ -728,6 +933,274 @@ def show_demo_logs_page():
     with st.expander("🟢 01.08.2025 14:30 - Новостной канал - ключевое слово: анонс"):
         st.write("**Исходное сообщение:** Анонс новой функции в приложении")
         st.write("**Ответ агента:** Интересная новость! Расскажите подробнее")
+
+
+def show_chats_page():
+    """Страница мониторинга чатов"""
+    st.header("💬 Мониторинг чатов")
+    
+    # Получение списка активных чатов
+    chats_data = make_api_request("/chats/active")
+    
+    if chats_data is None:
+        return
+    
+    # Автообновление
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        auto_refresh = st.checkbox("🔄 Автообновление", value=False)
+    with col2:
+        if st.button("📥 Обновить сейчас"):
+            st.rerun()
+    
+    if auto_refresh:
+        time.sleep(5)
+        st.rerun()
+    
+    if chats_data and len(chats_data) > 0:
+        st.subheader(f"Активные чаты ({len(chats_data)})")
+        
+        # Выбор чата для детального просмотра
+        selected_chat = st.selectbox(
+            "Выберите чат для просмотра",
+            options=[None] + [chat["chat_id"] for chat in chats_data],
+            format_func=lambda x: "Выберите чат..." if x is None else next(
+                (chat["chat_title"] for chat in chats_data if chat["chat_id"] == x), x
+            )
+        )
+        
+        # Список чатов в виде карточек
+        for chat in chats_data:
+            with st.expander(f"💬 {chat['chat_title']}", expanded=(chat['chat_id'] == selected_chat)):
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    st.write(f"**ID чата:** `{chat['chat_id']}`")
+                    st.write(f"**Кампаний:** {chat['campaign_count']}")
+                    
+                    if chat['last_activity']:
+                        last_activity = datetime.fromisoformat(chat['last_activity'].replace('Z', '+00:00'))
+                        st.write(f"**Последняя активность:** {last_activity.strftime('%d.%m.%Y %H:%M')}")
+                    
+                    if chat['last_message']:
+                        st.write(f"**Последнее сообщение:** {chat['last_message']}")
+                    
+                    # Статус подключения
+                    connection_status = "🟢 Подключен" if chat['is_connected'] else "🔴 Отключен"
+                    st.write(f"**Статус:** {connection_status}")
+                
+                with col2:
+                    # Кнопка для просмотра сообщений
+                    if st.button(f"📜 Сообщения", key=f"messages_{chat['chat_id']}"):
+                        st.session_state.selected_chat_for_messages = chat['chat_id']
+                        st.session_state.show_chat_messages = True
+                        st.rerun()
+                    
+                    # Кнопка для отправки сообщения
+                    if st.button(f"✉️ Отправить", key=f"send_{chat['chat_id']}"):
+                        st.session_state.selected_chat_for_send = chat['chat_id']
+                        st.session_state.show_send_message = True
+                        st.rerun()
+                    
+                    # Кнопка информации о чате
+                    if st.button(f"ℹ️ Инфо", key=f"info_{chat['chat_id']}"):
+                        show_chat_info(chat['chat_id'])
+        
+        # Отображение сообщений чата
+        if st.session_state.get('show_chat_messages', False):
+            show_chat_messages()
+        
+        # Форма отправки сообщения
+        if st.session_state.get('show_send_message', False):
+            show_send_message_form()
+            
+    else:
+        st.info("📭 Нет активных чатов для мониторинга. Создайте кампании для начала работы.")
+
+
+def show_chat_messages():
+    """Отображение сообщений чата"""
+    chat_id = st.session_state.get('selected_chat_for_messages')
+    if not chat_id:
+        return
+    
+    st.subheader(f"📜 Сообщения чата: {chat_id}")
+    
+    # Кнопка закрытия
+    if st.button("❌ Закрыть", key="close_messages"):
+        st.session_state.show_chat_messages = False
+        st.rerun()
+    
+    # Получение сообщений
+    messages_data = make_api_request(f"/chats/{chat_id}/messages?limit=30")
+    
+    if messages_data:
+        st.write(f"**Чат:** {messages_data['chat_title']}")
+        
+        # Отображение сообщений
+        for message in messages_data['messages']:
+            message_time = datetime.fromisoformat(message['date'].replace('Z', '+00:00'))
+            time_str = message_time.strftime('%H:%M:%S')
+            
+            # Определяем тип сообщения
+            if message['is_bot']:
+                message_type = "🤖"
+            elif message['sender'].startswith('@'):
+                message_type = "👤"
+            else:
+                message_type = "👥"
+            
+            with st.container():
+                col1, col2 = st.columns([4, 1])
+                
+                with col1:
+                    st.markdown(f"**{message_type} {message['sender']}** ({time_str})")
+                    if message['text']:
+                        st.write(message['text'])
+                    
+                    # Показываем ответ бота, если есть
+                    if message.get('bot_response'):
+                        bot_resp = message['bot_response']
+                        status_color = "🟢" if bot_resp['status'] == 'sent' else "🔴"
+                        st.info(f"{status_color} **Ответ бота** (кл.слово: {bot_resp['trigger_keyword']}):\n{bot_resp['response']}")
+                
+                with col2:
+                    # Кнопка для принудительного ответа
+                    if not message['is_bot'] and not message.get('bot_response'):
+                        if st.button("🤖 Ответить", key=f"reply_{message['id']}"):
+                            trigger_manual_response(chat_id, message['id'])
+                
+                st.divider()
+
+
+def show_send_message_form():
+    """Форма отправки сообщения"""
+    chat_id = st.session_state.get('selected_chat_for_send')
+    if not chat_id:
+        return
+    
+    st.subheader(f"✉️ Отправка сообщения в чат: {chat_id}")
+    
+    # Кнопка закрытия
+    if st.button("❌ Закрыть", key="close_send"):
+        st.session_state.show_send_message = False
+        st.rerun()
+    
+    with st.form("send_message_form"):
+        message_text = st.text_area(
+            "Текст сообщения:",
+            height=100,
+            help="Введите текст сообщения для отправки"
+        )
+        
+        reply_to = st.number_input(
+            "ID сообщения для ответа (опционально):",
+            min_value=0,
+            value=0,
+            help="Если указать ID сообщения, ваше сообщение будет ответом на него"
+        )
+        
+        submit = st.form_submit_button("📤 Отправить сообщение", type="primary")
+        
+        if submit:
+            if not message_text.strip():
+                st.error("Текст сообщения не может быть пустым")
+                return
+            
+            # Подготовка данных
+            message_data = {
+                "text": message_text.strip(),
+                "reply_to": reply_to if reply_to > 0 else None
+            }
+            
+            # Отправка
+            response = make_api_request(
+                f"/chats/{chat_id}/send",
+                method="POST",
+                data=message_data
+            )
+            
+            if response:
+                st.success(f"✅ Сообщение отправлено! ID: {response['message_id']}")
+                st.session_state.show_send_message = False
+                time.sleep(1)
+                st.rerun()
+
+
+def show_chat_info(chat_id):
+    """Отображение информации о чате"""
+    info = make_api_request(f"/chats/{chat_id}/info")
+    
+    if info:
+        st.subheader(f"ℹ️ Информация о чате")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**ID:** `{info['id']}`")
+            st.write(f"**Название:** {info['title']}")
+            st.write(f"**Тип:** {info['type']}")
+        
+        with col2:
+            if info['username']:
+                st.write(f"**Username:** {info['username']}")
+            if info['participant_count']:
+                st.write(f"**Участников:** {info['participant_count']}")
+        
+        if info['description']:
+            st.write(f"**Описание:** {info['description']}")
+
+
+def trigger_manual_response(chat_id, message_id):
+    """Запуск принудительного ответа бота"""
+    # Получаем список кампаний для выбора
+    campaigns_data = make_api_request("/campaigns/")
+    
+    if campaigns_data:
+        # Фильтруем кампании, которые мониторят данный чат
+        relevant_campaigns = []
+        for campaign in campaigns_data:
+            if campaign['active'] and chat_id in campaign['telegram_chats']:
+                relevant_campaigns.append(campaign)
+        
+        if relevant_campaigns:
+            # Используем первую подходящую кампанию
+            campaign = relevant_campaigns[0]
+            
+            trigger_data = {
+                "message_id": message_id,
+                "campaign_id": campaign['id']
+            }
+            
+            response = make_api_request(
+                f"/chats/{chat_id}/trigger",
+                method="POST",
+                data=trigger_data
+            )
+            
+            if response:
+                st.success(f"✅ Принудительный ответ запущен через кампанию '{campaign['name']}'")
+            else:
+                st.error("❌ Ошибка запуска принудительного ответа")
+        else:
+            st.warning("⚠️ Нет активных кампаний для этого чата")
+    else:
+        st.error("❌ Не удалось получить список кампаний")
+
+
+def show_demo_chats_page():
+    """Демо-страница чатов"""
+    st.header("💬 Мониторинг чатов (Демо-режим)")
+    st.warning("⚠️ Backend недоступен - показан демо-интерфейс")
+    
+    st.info("В этом разделе вы можете мониторить активность в Telegram-чатах в реальном времени")
+    
+    # Пример активного чата
+    with st.expander("💬 @tech_news_channel", expanded=True):
+        st.write("**ID чата:** `-1001234567890`")
+        st.write("**Кампаний:** 2")
+        st.write("**Последняя активность:** 02.08.2025 15:45")
+        st.write("**Последнее сообщение:** Новая версия Python 3.12 выпущена...")
+        st.write("**Статус:** 🟢 Подключен")
 
 
 if __name__ == "__main__":

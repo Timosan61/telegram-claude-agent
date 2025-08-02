@@ -1,6 +1,10 @@
 # Core Framework 
 python-dotenv==1.0.0
 
+# Streamlit & Web Interface
+streamlit==1.28.1
+pandas==2.1.4
+
 # Database
 sqlalchemy==1.4.46
 
