@@ -170,7 +170,9 @@ class TelegramAgentAppPlatform:
                         messages_count += 1
                     
                     if messages_count == 0:
+                        logger.warning("   Нет доступных сообщений в группе обсуждений")
                     else:
+                        logger.info(f"   Найдено {messages_count} сообщений в группе обсуждений")
                     
                     # Попробуем активировать участие в группе обсуждений
                     try:
@@ -281,6 +283,7 @@ class TelegramAgentAppPlatform:
             # Логируем только значимые события
             event_type = type(event).__name__
             if event_type not in ['UpdateUserStatus', 'UpdateReadHistoryInbox', 'UpdateReadHistoryOutbox']:
+                logger.debug(f"Raw event: {event_type}")
         
         logger.info(f"Обработчики событий настроены (специально для {len(discussion_group_ids)} групп обсуждений + общий fallback)")
     
@@ -379,6 +382,7 @@ class TelegramAgentAppPlatform:
                         print(f"         ✅ Найдено ключевое слово: '{keyword}' в '{message_text}'")
                         return True
                     else:
+                        logger.debug(f"         Ключевое слово '{keyword}' не найдено")
             else:
                 print(f"         ⚠️ Пропускаем проверку keywords: keywords={bool(campaign.keywords)}, message.text={bool(message.text)}")
             
