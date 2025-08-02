@@ -160,15 +160,23 @@ class TelegramAgentAppPlatform:
     
     async def _setup_event_handlers(self):
         """Настройка обработчиков событий"""
-        @self.client.on(events.NewMessage)
+        # Обработчик для ВСЕХ новых сообщений (включая каналы, группы, ЛС)
+        @self.client.on(events.NewMessage(incoming=True))
         async def handle_new_message(event):
             await self._handle_message(event)
         
-        print("✅ Обработчики событий настроены")
+        # Дополнительный обработчик для редактирования сообщений
+        @self.client.on(events.MessageEdited(incoming=True))
+        async def handle_edited_message(event):
+            await self._handle_message(event)
+        
+        print("✅ Обработчики событий настроены (ALL incoming messages)")
     
     async def _handle_message(self, event):
         """Обработка нового сообщения"""
         try:
+            print(f"🚀 EVENT HANDLER TRIGGERED! Type: {type(event)}")
+            
             message = event.message
             chat = await event.get_chat()
             
