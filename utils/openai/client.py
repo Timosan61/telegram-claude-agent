@@ -29,7 +29,7 @@ class OpenAIClient:
         self.client = OpenAI(api_key=self.api_key)
         
         # Настройки по умолчанию
-        self.default_model = "gpt-4"
+        self.default_model = "gpt-4o"
         self.fallback_model = "gpt-3.5-turbo"
         
         print("🤖 OpenAI Client инициализирован")
@@ -179,6 +179,7 @@ class OpenAIClient:
     def get_available_models(self) -> List[str]:
         """Получение списка доступных моделей"""
         return [
+            "gpt-4o",
             "gpt-4",
             "gpt-4-turbo-preview",
             "gpt-3.5-turbo",
@@ -245,11 +246,17 @@ class OpenAIClient:
     def get_model_info(self, model: str) -> Dict[str, Any]:
         """Получение информации о модели"""
         model_info = {
+            "gpt-4o": {
+                "name": "GPT-4o",
+                "max_tokens": 128000,
+                "cost_per_1k": 0.005,
+                "description": "Самая современная мультимодальная модель OpenAI"
+            },
             "gpt-4": {
                 "name": "GPT-4",
                 "max_tokens": 8192,
                 "cost_per_1k": 0.03,
-                "description": "Самая мощная модель OpenAI"
+                "description": "Мощная модель OpenAI"
             },
             "gpt-4-turbo-preview": {
                 "name": "GPT-4 Turbo Preview",
