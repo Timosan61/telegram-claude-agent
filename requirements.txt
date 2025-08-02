@@ -1,38 +1,20 @@
-# Core Framework for Streamlit Cloud
-streamlit==1.28.2
+# Core Framework 
 python-dotenv==1.0.0
 
-# Build tools
-setuptools>=60.0.0
-wheel>=0.37.0
+# Database
+sqlalchemy==2.0.25
 
-# Database (SQLite for simplicity in cloud)
-sqlalchemy>=2.0.25
-
-# AI Integration - ТОЛЬКО OpenAI используется в системе
-openai>=1.3.0
-# anthropic==0.7.8  # ОТКЛЮЧЕНО - используем только OpenAI
+# AI Integration
+openai==1.3.0
 
 # HTTP & API
 requests==2.31.0
-httpx==0.25.2
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
+uvicorn==0.24.0
 
-# Data Processing
-pandas>=2.3.1
+# Telegram Integration - App Platform compatible
+telethon==1.30.3
 
-# Utilities
+# Basic utilities
 python-dateutil==2.8.2
-
-# Telegram Integration - Required for App Platform
-telethon==1.32.1
-# cryptg==0.4.0  # Optional: faster encryption, may cause build issues on some platforms
-
-# Additional dependencies for full backend
-aiohttp==3.9.1
-zep-python==1.0.0
-numpy==1.25.2
 pydantic==2.5.0
-asyncio-throttle==1.0.2
-pytz==2023.3
