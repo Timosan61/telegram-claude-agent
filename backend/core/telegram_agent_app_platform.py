@@ -234,6 +234,7 @@ class TelegramAgentAppPlatform:
             # Подготовка контекста
             context = {
                 'message': message.text or '',
+                'message_obj': message,  # Добавляем объект сообщения для логирования
                 'chat_name': getattr(chat, 'title', getattr(chat, 'username', 'Unknown')),
                 'chat_id': getattr(chat, 'id', 'Unknown'),
                 'sender_id': message.sender_id,
@@ -262,7 +263,7 @@ class TelegramAgentAppPlatform:
             Контекст: {context['message']}
             Чат: {context['chat_name']}
             Кампания: {campaign.name}
-            Инструкции: {campaign.prompt}
+            Инструкции: {campaign.system_instruction}
             
             Сгенерируй подходящий ответ согласно инструкциям кампании.
             """
@@ -312,14 +313,25 @@ class TelegramAgentAppPlatform:
         try:
             db = SessionLocal()
             
+            # Находим какое ключевое слово сработало
+            trigger_keyword = "unknown"
+            if campaign.keywords and context.get('message'):
+                message_lower = context['message'].lower()
+                keywords = campaign.keywords if isinstance(campaign.keywords, list) else campaign.keywords.split(',')
+                for keyword in keywords:
+                    if keyword.strip().lower() in message_lower:
+                        trigger_keyword = keyword.strip()
+                        break
+            
             log_entry = ActivityLog(
                 campaign_id=campaign.id,
-                message_text=context['message'][:1000],  # Ограничиваем длину
-                chat_name=context['chat_name'],
                 chat_id=str(context['chat_id']),
-                sender_id=str(context['sender_id']),
-                response_text=response[:1000] if response else None,
-                timestamp=context['date']
+                chat_title=context.get('chat_name', 'Unknown'),
+                message_id=getattr(context.get('message_obj'), 'id', 0),
+                trigger_keyword=trigger_keyword,
+                original_message=context['message'][:1000] if context.get('message') else '',
+                agent_response=response[:1000] if response else 'No response',
+                status='sent' if response else 'failed'
             )
             
             db.add(log_entry)
