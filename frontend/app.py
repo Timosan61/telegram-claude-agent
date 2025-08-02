@@ -137,7 +137,7 @@ def show_campaigns_page():
     st.header("📋 Управление кампаниями")
     
     # Получение списка кампаний
-    campaigns_data = make_api_request("/api/campaigns/")
+    campaigns_data = make_api_request("/campaigns/")
     
     if campaigns_data is None:
         return
@@ -389,13 +389,13 @@ def show_campaign_form(edit_data=None):
             # Отправка данных
             if is_edit:
                 response = make_api_request(
-                    f"/api/campaigns/{edit_data['id']}",
+                    f"/campaigns/{edit_data['id']}",
                     method="PUT",
                     data=campaign_data
                 )
             else:
                 response = make_api_request(
-                    "/api/campaigns/",
+                    "/campaigns/",
                     method="POST",
                     data=campaign_data
                 )
@@ -416,14 +416,14 @@ def show_campaign_form(edit_data=None):
 
 def toggle_campaign_status(campaign_id):
     """Переключение статуса кампании"""
-    response = make_api_request(f"/api/campaigns/{campaign_id}/toggle", method="POST")
+    response = make_api_request(f"/campaigns/{campaign_id}/toggle", method="POST")
     if response:
         st.success(f"✅ {response['message']}")
 
 
 def delete_campaign(campaign_id):
     """Удаление кампании"""
-    response = make_api_request(f"/api/campaigns/{campaign_id}", method="DELETE")
+    response = make_api_request(f"/campaigns/{campaign_id}", method="DELETE")
     if response is not None:  # 204 статус не возвращает JSON
         st.success("✅ Кампания удалена!")
 
@@ -433,7 +433,7 @@ def show_statistics_page():
     st.header("📊 Статистика системы")
     
     # Общая статистика
-    overview_data = make_api_request("/api/logs/stats/overview")
+    overview_data = make_api_request("/logs/stats/overview")
     
     if overview_data:
         # Метрики кампаний
@@ -509,13 +509,13 @@ def show_statistics_page():
                 st.bar_chart(df_status.set_index('Статус'))
     
     # Статистика по кампаниям
-    campaigns_data = make_api_request("/api/campaigns/")
+    campaigns_data = make_api_request("/campaigns/")
     if campaigns_data:
         st.subheader("📋 Статистика по кампаниям")
         
         campaign_stats = []
         for campaign in campaigns_data:
-            stats = make_api_request(f"/api/logs/campaign/{campaign['id']}/stats")
+            stats = make_api_request(f"/logs/campaign/{campaign['id']}/stats")
             if stats:
                 campaign_stats.append(stats)
         
@@ -544,7 +544,7 @@ def show_logs_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        campaigns_data = make_api_request("/api/campaigns/")
+        campaigns_data = make_api_request("/campaigns/")
         campaign_options = {"Все кампании": None}
         if campaigns_data:
             for campaign in campaigns_data:
@@ -584,7 +584,7 @@ def show_logs_page():
     
     # Формирование URL с параметрами
     query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-    endpoint = f"/api/logs/{'?' + query_string if query_string else ''}"
+    endpoint = f"/logs/{'?' + query_string if query_string else ''}"
     
     logs_data = make_api_request(endpoint)
     
