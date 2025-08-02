@@ -1,1 +1,1 @@
-web: python -m backend.main_minimal
+web: python -m backend.main_app_platform
