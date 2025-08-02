@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 import base64
+import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -15,13 +16,20 @@ from database.models.base import SessionLocal
 from database.models.campaign import Campaign
 from database.models.log import ActivityLog
 
+# Настройка логирования
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 # Опциональный импорт Claude Client
 try:
     from utils.claude.client import ClaudeClient
     CLAUDE_AVAILABLE = True
 except ImportError:
     CLAUDE_AVAILABLE = False
-    print("⚠️ ClaudeClient недоступен - отключен anthropic")
+    logger.warning("ClaudeClient недоступен - отключен anthropic")
 
 from utils.openai.client import OpenAIClient
 
@@ -31,7 +39,7 @@ try:
     ZEP_AVAILABLE = True
 except ImportError:
     ZEP_AVAILABLE = False
-    print("⚠️ ZepMemoryManager недоступен - работаем без управления памятью")
+    logger.warning("ZepMemoryManager недоступен - работаем без управления памятью")
 
 
 class TelegramAgentAppPlatform:
@@ -52,40 +60,39 @@ class TelegramAgentAppPlatform:
         if self.session_string:
             session = StringSession(self.session_string)
             self.client = TelegramClient(session, self.api_id, self.api_hash)
-            print("✅ TelegramClient инициализован с StringSession")
+            logger.info("TelegramClient инициализован с StringSession")
         else:
             # Fallback к файловой сессии для локальной разработки
             self.client = TelegramClient("telegram_agent", self.api_id, self.api_hash)
-            print("⚠️ Используется файловая сессия (локальная разработка)")
+            logger.warning("Используется файловая сессия (локальная разработка)")
         
         # AI клиенты - инициализируем с обработкой ошибок
         if CLAUDE_AVAILABLE:
             try:
                 self.claude_client = ClaudeClient()
-                print("✅ Claude Client доступен")
+                logger.info("Claude Client доступен")
             except Exception as e:
-                print(f"⚠️ Claude Client недоступен: {e}")
+                logger.warning(f"Claude Client недоступен: {e}")
                 self.claude_client = None
         else:
             self.claude_client = None
-            print("⚠️ Claude Client отключен - используем только OpenAI")
+            logger.warning("Claude Client отключен - используем только OpenAI")
         
         try:
-            print("🔄 Инициализация OpenAI клиента...")
+            logger.info("Инициализация OpenAI клиента...")
             self.openai_client = OpenAIClient()
-            print("✅ OpenAI Client успешно инициализирован")
+            logger.info("OpenAI Client успешно инициализирован")
         except Exception as e:
-            print(f"❌ OpenAI Client недоступен: {e}")
-            print(f"📋 Детали ошибки: {type(e).__name__}: {str(e)}")
+            logger.error(f"OpenAI Client недоступен: {type(e).__name__}: {str(e)}")
             self.openai_client = None
         
         # Инициализация менеджера памяти (опционально)
         if ZEP_AVAILABLE:
             self.memory_manager = ZepMemoryManager()
-            print("✅ ZepMemoryManager инициализирован")
+            logger.info("ZepMemoryManager инициализирован")
         else:
             self.memory_manager = None
-            print("⚠️ Работаем без менеджера памяти")
+            logger.warning("Работаем без менеджера памяти")
         
         # Кэш активных кампаний
         self.active_campaigns: List[Campaign] = []
@@ -104,7 +111,7 @@ class TelegramAgentAppPlatform:
         # Попробуем получить прямую строку сессии
         session_string = os.getenv("TELEGRAM_SESSION_STRING")
         if session_string:
-            print("✅ Найдена TELEGRAM_SESSION_STRING")
+            logger.info("Найдена TELEGRAM_SESSION_STRING")
             return session_string
         
         # Попробуем получить base64 версию
@@ -124,7 +131,7 @@ class TelegramAgentAppPlatform:
                 print(f"✅ Найдена сессия в {var_name}")
                 return session
         
-        print("⚠️ Сессия в переменных окружения не найдена")
+        logger.warning("Сессия в переменных окружения не найдена")
         return None
     
     async def get_channel_discussion_group(self, channel_identifier: str) -> Optional[int]:
@@ -134,7 +141,6 @@ class TelegramAgentAppPlatform:
             if channel_identifier in self.channel_discussion_groups:
                 return self.channel_discussion_groups[channel_identifier]
             
-            print(f"🔍 Получение информации о канале: {channel_identifier}")
             
             # Получаем объект канала
             channel = await self.client.get_entity(channel_identifier)
@@ -154,7 +160,6 @@ class TelegramAgentAppPlatform:
                 # Дополнительная диагностика доступа к группе обсуждений
                 try:
                     discussion_entity = await self.client.get_entity(discussion_group_id)
-                    print(f"🔍 Диагностика группы обсуждений {discussion_group_id}:")
                     print(f"   📋 Название: {getattr(discussion_entity, 'title', 'None')}")
                     print(f"   🔒 Тип: {type(discussion_entity)}")
                     print(f"   👥 Участников: {getattr(discussion_entity, 'participants_count', 'Unknown')}")
@@ -163,12 +168,9 @@ class TelegramAgentAppPlatform:
                     messages_count = 0
                     async for message in self.client.iter_messages(discussion_entity, limit=5):
                         messages_count += 1
-                        print(f"   📝 Последнее сообщение {messages_count}: '{message.text[:50] if message.text else 'No text'}'")
                     
                     if messages_count == 0:
-                        print(f"   ⚠️ Нет доступных сообщений в группе обсуждений")
                     else:
-                        print(f"   ✅ Найдено {messages_count} сообщений в группе обсуждений")
                     
                     # Попробуем активировать участие в группе обсуждений
                     try:
@@ -195,7 +197,7 @@ class TelegramAgentAppPlatform:
     async def start(self):
         """Запуск агента"""
         try:
-            print("🔗 Подключение к Telegram...")
+            logger.info("Подключение к Telegram...")
             await self.client.connect()
             self.is_connected = True
             
@@ -203,12 +205,11 @@ class TelegramAgentAppPlatform:
             self.is_authorized = await self.client.is_user_authorized()
             
             if self.is_authorized:
-                print("✅ Telegram авторизация активна")
+                logger.info("Telegram авторизация активна")
                 
                 # Получение информации о пользователе
                 me = await self.client.get_me()
-                print(f"👤 Пользователь: {me.first_name} {me.last_name or ''}")
-                print(f"📱 Телефон: {me.phone}")
+                logger.info(f"Пользователь: {me.first_name} {me.last_name or ''}, телефон: {me.phone}")
                 
                 # Настройка обработчиков событий
                 await self._setup_event_handlers()
@@ -222,15 +223,14 @@ class TelegramAgentAppPlatform:
                 # Принудительное подключение к группам обсуждений
                 await self.join_discussion_groups()
                 
-                print("🚀 Telegram Agent запущен и готов к работе!")
+                logger.info("Telegram Agent запущен и готов к работе!")
                 return True
             else:
-                print("❌ Telegram не авторизован")
-                print("💡 Требуется настройка переменной TELEGRAM_SESSION_STRING")
+                logger.error("Telegram не авторизован. Требуется настройка TELEGRAM_SESSION_STRING")
                 return False
                 
         except Exception as e:
-            print(f"❌ Ошибка запуска Telegram Agent: {e}")
+            logger.error(f"Ошибка запуска Telegram Agent: {e}")
             self.is_connected = False
             self.is_authorized = False
             return False
@@ -254,18 +254,16 @@ class TelegramAgentAppPlatform:
         if 2532661483 not in discussion_group_ids:
             discussion_group_ids.append(2532661483)
         
-        print(f"🎯 Настройка мониторинга для групп обсуждений: {discussion_group_ids}")
+        logger.info(f"Настройка мониторинга для групп обсуждений: {discussion_group_ids}")
         
         # Обработчик СПЕЦИАЛЬНО для групп обсуждений
         @self.client.on(events.NewMessage(chats=discussion_group_ids, incoming=True))
         async def handle_discussion_message(event):
-            print(f"💬 СОБЫТИЕ ИЗ ГРУППЫ ОБСУЖДЕНИЙ: {type(event)}")
             await self._handle_message(event)
         
         # Обработчик для редактирования сообщений в группах обсуждений
         @self.client.on(events.MessageEdited(chats=discussion_group_ids, incoming=True))
         async def handle_discussion_edited(event):
-            print(f"✏️ РЕДАКТИРОВАНИЕ В ГРУППЕ ОБСУЖДЕНИЙ: {type(event)}")
             await self._handle_message(event)
         
         # Общий обработчик как fallback (но с меньшим приоритетом)
@@ -275,7 +273,6 @@ class TelegramAgentAppPlatform:
             chat = await event.get_chat()
             chat_id = getattr(chat, 'id', None)
             if chat_id not in discussion_group_ids:
-                print(f"📝 ОБЩЕЕ СОБЫТИЕ (не группа обсуждений): {type(event)}")
                 await self._handle_message(event)
         
         # Дополнительный debug обработчик для ВСЕХ событий
@@ -284,40 +281,31 @@ class TelegramAgentAppPlatform:
             # Логируем только значимые события
             event_type = type(event).__name__
             if event_type not in ['UpdateUserStatus', 'UpdateReadHistoryInbox', 'UpdateReadHistoryOutbox']:
-                print(f"🔍 RAW EVENT: {event_type} from chat: {getattr(event, 'chat_id', 'Unknown')}")
         
-        print(f"✅ Обработчики событий настроены (специально для {len(discussion_group_ids)} групп обсуждений + общий fallback)")
+        logger.info(f"Обработчики событий настроены (специально для {len(discussion_group_ids)} групп обсуждений + общий fallback)")
     
     async def _handle_message(self, event):
         """Обработка нового сообщения"""
         try:
-            print(f"🚀 EVENT HANDLER TRIGGERED! Type: {type(event)}")
-            
             message = event.message
             chat = await event.get_chat()
             
-            # DEBUG: Логируем все входящие сообщения
-            print(f"🔍 DEBUG: Получено сообщение!")
-            print(f"   📝 Текст: '{message.text or 'None'}'")
-            print(f"   💬 Чат: {getattr(chat, 'title', getattr(chat, 'username', 'Unknown'))} (ID: {getattr(chat, 'id', 'Unknown')})")
-            print(f"   👤 От: {message.sender_id}")
-            print(f"   🔗 Reply to: {getattr(message, 'reply_to_msg_id', 'None')}")
-            print(f"   📊 Активных кампаний: {len(self.active_campaigns)}")
-            
             # Проверка является ли это комментарием
             is_comment = hasattr(message, 'reply_to_msg_id') and message.reply_to_msg_id is not None
+            
+            logger.debug(f"Получено сообщение: текст='{message.text[:50] if message.text else 'None'}...', " +
+                        f"чат={getattr(chat, 'title', getattr(chat, 'username', 'Unknown'))}, " +
+                        f"от={message.sender_id}, комментарий={is_comment}")
+            
             if is_comment:
-                print(f"   💬 КОММЕНТАРИЙ обнаружен! Reply to message ID: {message.reply_to_msg_id}")
+                logger.info(f"Обнаружен комментарий к сообщению ID: {message.reply_to_msg_id}")
             
             # Проверяем, есть ли активные кампании для этого чата
             relevant_campaigns = []
             for campaign in self.active_campaigns:
-                print(f"   🎯 Проверяем кампанию: {campaign.name}")
                 if self._is_message_relevant(message, chat, campaign, is_comment):
                     relevant_campaigns.append(campaign)
-                    print(f"   ✅ Кампания {campaign.name} релевантна!")
-                else:
-                    print(f"   ❌ Кампания {campaign.name} не релевантна")
+                    logger.debug(f"Кампания {campaign.name} релевантна для сообщения")
             
             if not relevant_campaigns:
                 return
@@ -333,35 +321,27 @@ class TelegramAgentAppPlatform:
         """Проверка релевантности сообщения для кампании"""
         try:
             # DEBUG: Подробное логирование проверки релевантности
-            print(f"      🔍 DEBUG: Проверка релевантности для кампании '{campaign.name}'")
-            print(f"         📋 Target chats: {campaign.telegram_chats}")
-            print(f"         🔑 Keywords: {campaign.keywords}")
-            print(f"         💬 Chat ID: {getattr(chat, 'id', 'None')}")
-            print(f"         🏷️ Chat username: {getattr(chat, 'username', 'None')}")
-            print(f"         📝 Message text: '{message.text or 'None'}'")
-            print(f"         💬 Is comment: {is_comment}")
+            logger.debug(f"Проверка релевантности для кампании '{campaign.name}': " +
+                        f"чат_ID={getattr(chat, 'id', 'None')}, " +
+                        f"username={getattr(chat, 'username', 'None')}, " +
+                        f"комментарий={is_comment}")
             
             # Логика проверки чата
             chat_matches = False
             
             # Получаем target_chats
             target_chats = campaign.telegram_chats if isinstance(campaign.telegram_chats, list) else campaign.telegram_chats.split(',')
-            print(f"         🎯 Обработанные target_chats: {target_chats}")
-            
             # Проверка по ID чата/канала и username
             if hasattr(chat, 'id') or (hasattr(chat, 'username') and chat.username):
                 # Проверка по ID чата
                 if hasattr(chat, 'id') and str(chat.id) in target_chats:
-                    print(f"         ✅ Совпадение по Chat ID: {chat.id}")
                     chat_matches = True
                     
                 # Проверка по username чата (с @ и без @)
                 if hasattr(chat, 'username') and chat.username:
                     username_variants = [chat.username.lower(), f"@{chat.username.lower()}"]
-                    print(f"         🔍 Проверяем username варианты: {username_variants}")
                     for target in target_chats:
                         if target.lower() in username_variants:
-                            print(f"         ✅ Совпадение по username: {target} in {username_variants}")
                             chat_matches = True
                             break
             
@@ -373,7 +353,6 @@ class TelegramAgentAppPlatform:
                     if target_chat.startswith('@'):
                         discussion_group_id = self.channel_discussion_groups.get(target_chat)
                         if discussion_group_id and chat_id == discussion_group_id:
-                            print(f"         ✅ Совпадение по discussion group: {chat_id} для канала {target_chat}")
                             chat_matches = True
                             break
             
@@ -392,7 +371,6 @@ class TelegramAgentAppPlatform:
                     keywords = [kw.strip().lower() for kw in campaign.keywords.split(',')]
                     
                 message_text = message.text.lower()
-                print(f"         🔍 Проверяем ключевые слова:")
                 print(f"            📝 Текст сообщения (lower): '{message_text}'")
                 print(f"            🔑 Keywords для поиска: {keywords}")
                 
@@ -401,7 +379,6 @@ class TelegramAgentAppPlatform:
                         print(f"         ✅ Найдено ключевое слово: '{keyword}' в '{message_text}'")
                         return True
                     else:
-                        print(f"         ❌ Ключевое слово '{keyword}' не найдено")
             else:
                 print(f"         ⚠️ Пропускаем проверку keywords: keywords={bool(campaign.keywords)}, message.text={bool(message.text)}")
             
@@ -490,17 +467,13 @@ class TelegramAgentAppPlatform:
         try:
             if is_comment and event:
                 # Для комментариев используем event.respond() с comment_to (правильный метод по документации)
-                print(f"💬 Отправка ответа на комментарий через event.respond(comment_to={original_message.id})")
                 await event.respond(response, comment_to=original_message.id)
-                print(f"✅ Ответ на комментарий отправлен для кампании: {campaign.name}")
             elif is_comment:
                 # Fallback для комментариев, если нет event
                 print(f"💬 Отправка ответа на комментарий через reply (fallback)")
                 await original_message.reply(response)
-                print(f"✅ Ответ на комментарий отправлен (fallback) для кампании: {campaign.name}")
             else:
                 # Для обычных сообщений используем reply
-                print(f"📝 Отправка обычного ответа")
                 await original_message.reply(response)
                 print(f"✅ Обычный ответ отправлен для кампании: {campaign.name}")
             
