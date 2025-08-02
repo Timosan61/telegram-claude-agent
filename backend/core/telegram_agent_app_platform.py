@@ -148,6 +148,29 @@ class TelegramAgentAppPlatform:
                 self.channel_discussion_groups[channel_identifier] = discussion_group_id
                 
                 print(f"✅ Найдена группа обсуждений для {channel_identifier}: {discussion_group_id}")
+                
+                # Дополнительная диагностика доступа к группе обсуждений
+                try:
+                    discussion_entity = await self.client.get_entity(discussion_group_id)
+                    print(f"🔍 Диагностика группы обсуждений {discussion_group_id}:")
+                    print(f"   📋 Название: {getattr(discussion_entity, 'title', 'None')}")
+                    print(f"   🔒 Тип: {type(discussion_entity)}")
+                    print(f"   👥 Участников: {getattr(discussion_entity, 'participants_count', 'Unknown')}")
+                    
+                    # Попробуем получить последние сообщения
+                    messages_count = 0
+                    async for message in self.client.iter_messages(discussion_entity, limit=5):
+                        messages_count += 1
+                        print(f"   📝 Последнее сообщение {messages_count}: '{message.text[:50] if message.text else 'No text'}'")
+                    
+                    if messages_count == 0:
+                        print(f"   ⚠️ Нет доступных сообщений в группе обсуждений")
+                    else:
+                        print(f"   ✅ Найдено {messages_count} сообщений в группе обсуждений")
+                        
+                except Exception as diag_error:
+                    print(f"   ❌ Ошибка диагностики группы обсуждений: {diag_error}")
+                
                 return discussion_group_id
             else:
                 print(f"⚠️ У канала {channel_identifier} нет группы обсуждений")
