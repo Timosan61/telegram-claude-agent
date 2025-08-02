@@ -8,7 +8,7 @@ from datetime import datetime
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import Message, User, Chat, Channel
-from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.channels import GetFullChannelRequest, JoinChannelRequest
 from sqlalchemy.orm import Session
 
 from database.models.base import SessionLocal
@@ -219,6 +219,9 @@ class TelegramAgentAppPlatform:
                 # Определение групп обсуждений для каналов в кампаниях
                 await self.discover_discussion_groups()
                 
+                # Принудительное подключение к группам обсуждений
+                await self.join_discussion_groups()
+                
                 print("🚀 Telegram Agent запущен и готов к работе!")
                 return True
             else:
@@ -234,23 +237,56 @@ class TelegramAgentAppPlatform:
     
     async def _setup_event_handlers(self):
         """Настройка обработчиков событий"""
-        # Обработчик для ВСЕХ новых сообщений (включая каналы, группы, ЛС)
-        @self.client.on(events.NewMessage(incoming=True))
-        async def handle_new_message(event):
+        # Собираем все ID групп обсуждений для мониторинга
+        discussion_group_ids = []
+        
+        # Получаем группы обсуждений из кампаний
+        for campaign in self.active_campaigns:
+            if campaign.telegram_chats:
+                for chat in campaign.telegram_chats:
+                    # Если это число, считаем что это ID группы обсуждений
+                    if isinstance(chat, str) and chat.isdigit():
+                        discussion_group_ids.append(int(chat))
+                    elif isinstance(chat, int):
+                        discussion_group_ids.append(chat)
+        
+        # Добавляем известную группу обсуждений
+        if 2532661483 not in discussion_group_ids:
+            discussion_group_ids.append(2532661483)
+        
+        print(f"🎯 Настройка мониторинга для групп обсуждений: {discussion_group_ids}")
+        
+        # Обработчик СПЕЦИАЛЬНО для групп обсуждений
+        @self.client.on(events.NewMessage(chats=discussion_group_ids, incoming=True))
+        async def handle_discussion_message(event):
+            print(f"💬 СОБЫТИЕ ИЗ ГРУППЫ ОБСУЖДЕНИЙ: {type(event)}")
             await self._handle_message(event)
         
-        # Дополнительный обработчик для редактирования сообщений
-        @self.client.on(events.MessageEdited(incoming=True))
-        async def handle_edited_message(event):
+        # Обработчик для редактирования сообщений в группах обсуждений
+        @self.client.on(events.MessageEdited(chats=discussion_group_ids, incoming=True))
+        async def handle_discussion_edited(event):
+            print(f"✏️ РЕДАКТИРОВАНИЕ В ГРУППЕ ОБСУЖДЕНИЙ: {type(event)}")
             await self._handle_message(event)
+        
+        # Общий обработчик как fallback (но с меньшим приоритетом)
+        @self.client.on(events.NewMessage(incoming=True))
+        async def handle_general_message(event):
+            # Проверяем, не из группы обсуждений ли это (чтобы избежать дублирования)
+            chat = await event.get_chat()
+            chat_id = getattr(chat, 'id', None)
+            if chat_id not in discussion_group_ids:
+                print(f"📝 ОБЩЕЕ СОБЫТИЕ (не группа обсуждений): {type(event)}")
+                await self._handle_message(event)
         
         # Дополнительный debug обработчик для ВСЕХ событий
         @self.client.on(events.Raw)
         async def handle_raw_event(event):
-            # Только логируем, не обрабатываем
-            print(f"🔍 RAW EVENT: {type(event)} from chat: {getattr(event, 'chat_id', 'Unknown')}")
+            # Логируем только значимые события
+            event_type = type(event).__name__
+            if event_type not in ['UpdateUserStatus', 'UpdateReadHistoryInbox', 'UpdateReadHistoryOutbox']:
+                print(f"🔍 RAW EVENT: {event_type} from chat: {getattr(event, 'chat_id', 'Unknown')}")
         
-        print("✅ Обработчики событий настроены (ALL incoming messages + comments + raw events)")
+        print(f"✅ Обработчики событий настроены (специально для {len(discussion_group_ids)} групп обсуждений + общий fallback)")
     
     async def _handle_message(self, event):
         """Обработка нового сообщения"""
@@ -288,7 +324,7 @@ class TelegramAgentAppPlatform:
             
             # Обработка сообщения для каждой релевантной кампании
             for campaign in relevant_campaigns:
-                await self._process_message_for_campaign(message, chat, campaign, is_comment)
+                await self._process_message_for_campaign(message, chat, campaign, is_comment, event)
                 
         except Exception as e:
             print(f"❌ Ошибка обработки сообщения: {e}")
@@ -377,7 +413,7 @@ class TelegramAgentAppPlatform:
             print(f"❌ Ошибка проверки релевантности: {e}")
             return False
     
-    async def _process_message_for_campaign(self, message: Message, chat, campaign: Campaign, is_comment: bool = False):
+    async def _process_message_for_campaign(self, message: Message, chat, campaign: Campaign, is_comment: bool = False, event=None):
         """Обработка сообщения для конкретной кампании"""
         try:
             # Подготовка контекста
@@ -397,8 +433,8 @@ class TelegramAgentAppPlatform:
             response = await self._generate_ai_response(context, campaign)
             
             if response:
-                # Отправка автоответа
-                await self._send_response(message, response, campaign, is_comment)
+                # Отправка автоответа с передачей event для правильного ответа на комментарии
+                await self._send_response(message, response, campaign, is_comment, event)
             
             # Логирование активности
             await self._log_activity(context, response, campaign)
@@ -449,18 +485,19 @@ class TelegramAgentAppPlatform:
             print(f"❌ Ошибка генерации AI ответа: {e}")
             return None
     
-    async def _send_response(self, original_message: Message, response: str, campaign: Campaign, is_comment: bool = False):
+    async def _send_response(self, original_message: Message, response: str, campaign: Campaign, is_comment: bool = False, event=None):
         """Отправка ответа"""
         try:
-            if is_comment:
-                # Для комментариев отправляем ответ в том же чате с reply_to
-                print(f"💬 Отправка ответа на комментарий (reply_to={original_message.id})")
-                await self.client.send_message(
-                    entity=original_message.chat_id,
-                    message=response,
-                    reply_to=original_message.id
-                )
+            if is_comment and event:
+                # Для комментариев используем event.respond() с comment_to (правильный метод по документации)
+                print(f"💬 Отправка ответа на комментарий через event.respond(comment_to={original_message.id})")
+                await event.respond(response, comment_to=original_message.id)
                 print(f"✅ Ответ на комментарий отправлен для кампании: {campaign.name}")
+            elif is_comment:
+                # Fallback для комментариев, если нет event
+                print(f"💬 Отправка ответа на комментарий через reply (fallback)")
+                await original_message.reply(response)
+                print(f"✅ Ответ на комментарий отправлен (fallback) для кампании: {campaign.name}")
             else:
                 # Для обычных сообщений используем reply
                 print(f"📝 Отправка обычного ответа")
@@ -473,11 +510,13 @@ class TelegramAgentAppPlatform:
             # Fallback: попробуем альтернативный способ отправки
             try:
                 if is_comment:
-                    # Альтернативный способ для комментариев
+                    # Альтернативный способ для комментариев - обычный reply
+                    print(f"🔄 Попытка альтернативной отправки комментария через reply")
                     await original_message.reply(response)
                     print(f"✅ Альтернативная отправка ответа на комментарий успешна")
                 else:
                     # Альтернативный способ для обычных сообщений
+                    print(f"🔄 Попытка альтернативной отправки через send_message")
                     await self.client.send_message(
                         entity=original_message.chat_id,
                         message=response
@@ -575,6 +614,72 @@ class TelegramAgentAppPlatform:
             
         except Exception as e:
             print(f"❌ Ошибка обнаружения групп обсуждений: {e}")
+    
+    async def join_discussion_groups(self):
+        """Принудительное подключение к группам обсуждений для получения обновлений"""
+        try:
+            print("🔗 Принудительное подключение к группам обсуждений...")
+            
+            joined_count = 0
+            
+            # Подключаемся ко всем известным группам обсуждений
+            for channel_identifier, discussion_group_id in self.channel_discussion_groups.items():
+                try:
+                    print(f"🔗 Подключение к группе обсуждений {discussion_group_id} для канала {channel_identifier}...")
+                    
+                    # Получаем entity группы обсуждений
+                    discussion_entity = await self.client.get_entity(discussion_group_id)
+                    
+                    # Пытаемся присоединиться
+                    try:
+                        await self.client(JoinChannelRequest(discussion_entity))
+                        print(f"   ✅ Присоединились к группе обсуждений {discussion_group_id}")
+                        joined_count += 1
+                    except Exception as join_error:
+                        # Если не можем присоединиться (например, уже участник), это нормально
+                        if "already" in str(join_error).lower() or "participant" in str(join_error).lower():
+                            print(f"   ✅ Уже участник группы обсуждений {discussion_group_id}")
+                            joined_count += 1
+                        else:
+                            print(f"   ⚠️ Не удалось присоединиться к группе {discussion_group_id}: {join_error}")
+                    
+                    # Дополнительно: отправляем silent ping для активации
+                    try:
+                        await self.client.send_message(
+                            discussion_entity, 
+                            "🔔 Активация мониторинга комментариев",
+                            silent=True  # Без уведомлений
+                        )
+                        print(f"   📡 Активационное сообщение отправлено в группу {discussion_group_id}")
+                    except Exception as ping_error:
+                        print(f"   ⚠️ Не удалось отправить активационное сообщение: {ping_error}")
+                        
+                except Exception as entity_error:
+                    print(f"   ❌ Ошибка получения entity группы {discussion_group_id}: {entity_error}")
+            
+            print(f"📊 Результат подключения к группам обсуждений: {joined_count}/{len(self.channel_discussion_groups)}")
+            
+            # Дополнительно: попробуем подключиться к основной группе обсуждений, если её нет в списке
+            main_discussion_id = 2532661483
+            if main_discussion_id not in [group_id for group_id in self.channel_discussion_groups.values()]:
+                try:
+                    print(f"🔗 Дополнительное подключение к основной группе обсуждений {main_discussion_id}...")
+                    main_entity = await self.client.get_entity(main_discussion_id)
+                    
+                    try:
+                        await self.client(JoinChannelRequest(main_entity))
+                        print(f"   ✅ Присоединились к основной группе обсуждений")
+                    except Exception as main_join_error:
+                        if "already" in str(main_join_error).lower():
+                            print(f"   ✅ Уже участник основной группы обсуждений")
+                        else:
+                            print(f"   ⚠️ Не удалось присоединиться к основной группе: {main_join_error}")
+                            
+                except Exception as main_error:
+                    print(f"   ❌ Ошибка подключения к основной группе: {main_error}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка принудительного подключения к группам обсуждений: {e}")
     
     async def get_status(self) -> Dict:
         """Получение статуса агента"""
