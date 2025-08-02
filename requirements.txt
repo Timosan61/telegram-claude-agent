@@ -4,8 +4,8 @@ python-dotenv==1.0.0
 # Database
 sqlalchemy==1.4.46
 
-# AI Integration
-openai==1.51.0
+# AI Integration  
+openai==1.35.0
 
 # HTTP & API
 requests==2.31.0
