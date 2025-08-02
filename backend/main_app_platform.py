@@ -79,7 +79,7 @@ async def root():
     """Корневая страница"""
     return {
         "message": "Telegram Claude Agent API",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "platform": "DigitalOcean App Platform",
         "status": "running"
     }

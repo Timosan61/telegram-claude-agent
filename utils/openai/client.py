@@ -25,8 +25,10 @@ class OpenAIClient:
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY не найден в переменных окружения")
         
-        # Инициализация OpenAI клиента
+        # Инициализация OpenAI клиента  
+        print(f"🔄 Инициализация OpenAI с API ключом: {self.api_key[:20]}...")
         self.client = OpenAI(api_key=self.api_key)
+        print("✅ OpenAI client успешно инициализирован")
         
         # Настройки по умолчанию
         self.default_model = "gpt-4o"
