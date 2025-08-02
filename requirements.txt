@@ -2,6 +2,10 @@
 streamlit==1.28.2
 python-dotenv==1.0.0
 
+# Build tools
+setuptools>=60.0.0
+wheel>=0.37.0
+
 # Database (SQLite for simplicity in cloud)
 sqlalchemy>=2.0.25
 
@@ -23,7 +27,7 @@ python-dateutil==2.8.2
 
 # Telegram Integration - Required for App Platform
 telethon==1.32.1
-cryptg==0.4.0
+# cryptg==0.4.0  # Optional: faster encryption, may cause build issues on some platforms
 
 # Additional dependencies for full backend
 aiohttp==3.9.1
