@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.models.base import get_db, create_tables
 from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
+from backend.api.chats import router as chats_router, set_telegram_agent
 from backend.core.telegram_agent_app_platform import get_telegram_agent, stop_telegram_agent
 
 # Загрузка переменных окружения
@@ -55,6 +56,10 @@ async def startup_event():
     # Инициализация Telegram агента
     try:
         telegram_agent = await get_telegram_agent()
+        
+        # Передаем агента в роутер чатов
+        if telegram_agent:
+            set_telegram_agent(telegram_agent)
         
         if telegram_agent and telegram_agent.is_authorized:
             print("🚀 Telegram Claude Agent запущен в App Platform режиме!")
@@ -233,6 +238,7 @@ async def check_environment():
 # Подключение роутеров API
 app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(logs_router, prefix="/logs", tags=["logs"])
+app.include_router(chats_router, prefix="/chats", tags=["chats"])
 
 if __name__ == "__main__":
     import uvicorn
