@@ -317,7 +317,7 @@ class TelegramAgentAppPlatform:
                 return
             
             db = SessionLocal()
-            campaigns = db.query(Campaign).filter(Campaign.is_active == True).all()
+            campaigns = db.query(Campaign).filter(Campaign.active == True).all()
             
             self.active_campaigns = campaigns
             self.last_campaign_update = current_time
