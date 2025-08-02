@@ -172,11 +172,22 @@ class TelegramAgentAppPlatform:
             message = event.message
             chat = await event.get_chat()
             
+            # DEBUG: Логируем все входящие сообщения
+            print(f"🔍 DEBUG: Получено сообщение!")
+            print(f"   📝 Текст: '{message.text or 'None'}'")
+            print(f"   💬 Чат: {getattr(chat, 'title', getattr(chat, 'username', 'Unknown'))} (ID: {getattr(chat, 'id', 'Unknown')})")
+            print(f"   👤 От: {message.sender_id}")
+            print(f"   📊 Активных кампаний: {len(self.active_campaigns)}")
+            
             # Проверяем, есть ли активные кампании для этого чата
             relevant_campaigns = []
             for campaign in self.active_campaigns:
+                print(f"   🎯 Проверяем кампанию: {campaign.name}")
                 if self._is_message_relevant(message, chat, campaign):
                     relevant_campaigns.append(campaign)
+                    print(f"   ✅ Кампания {campaign.name} релевантна!")
+                else:
+                    print(f"   ❌ Кампания {campaign.name} не релевантна")
             
             if not relevant_campaigns:
                 return
@@ -191,20 +202,32 @@ class TelegramAgentAppPlatform:
     def _is_message_relevant(self, message: Message, chat, campaign: Campaign) -> bool:
         """Проверка релевантности сообщения для кампании"""
         try:
+            # DEBUG: Подробное логирование проверки релевантности
+            print(f"      🔍 DEBUG: Проверка релевантности для кампании '{campaign.name}'")
+            print(f"         📋 Target chats: {campaign.telegram_chats}")
+            print(f"         🔑 Keywords: {campaign.keywords}")
+            print(f"         💬 Chat ID: {getattr(chat, 'id', 'None')}")
+            print(f"         🏷️ Chat username: {getattr(chat, 'username', 'None')}")
+            print(f"         📝 Message text: '{message.text or 'None'}'")
+            
             # Проверка по ID чата/канала и username
             if hasattr(chat, 'id') or (hasattr(chat, 'username') and chat.username):
                 # campaign.telegram_chats уже список (JSON), не строка
                 target_chats = campaign.telegram_chats if isinstance(campaign.telegram_chats, list) else campaign.telegram_chats.split(',')
+                print(f"         🎯 Обработанные target_chats: {target_chats}")
                 
                 # Проверка по ID чата
                 if hasattr(chat, 'id') and str(chat.id) in target_chats:
+                    print(f"         ✅ Совпадение по Chat ID: {chat.id}")
                     return True
                     
                 # Проверка по username чата (с @ и без @)
                 if hasattr(chat, 'username') and chat.username:
                     username_variants = [chat.username.lower(), f"@{chat.username.lower()}"]
+                    print(f"         🔍 Проверяем username варианты: {username_variants}")
                     for target in target_chats:
                         if target.lower() in username_variants:
+                            print(f"         ✅ Совпадение по username: {target} in {username_variants}")
                             return True
             
             # Проверка по ключевым словам
@@ -217,10 +240,20 @@ class TelegramAgentAppPlatform:
                     keywords = [kw.strip().lower() for kw in campaign.keywords.split(',')]
                     
                 message_text = message.text.lower()
+                print(f"         🔍 Проверяем ключевые слова:")
+                print(f"            📝 Текст сообщения (lower): '{message_text}'")
+                print(f"            🔑 Keywords для поиска: {keywords}")
                 
                 for keyword in keywords:
                     if keyword in message_text:
+                        print(f"         ✅ Найдено ключевое слово: '{keyword}' в '{message_text}'")
                         return True
+                    else:
+                        print(f"         ❌ Ключевое слово '{keyword}' не найдено")
+            else:
+                print(f"         ⚠️ Пропускаем проверку keywords: keywords={bool(campaign.keywords)}, message.text={bool(message.text)}")
+            
+            print(f"         ❌ Сообщение не релевантно для кампании '{campaign.name}'")
             
             return False
             
