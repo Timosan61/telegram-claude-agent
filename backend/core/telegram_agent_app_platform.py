@@ -191,19 +191,31 @@ class TelegramAgentAppPlatform:
     def _is_message_relevant(self, message: Message, chat, campaign: Campaign) -> bool:
         """Проверка релевантности сообщения для кампании"""
         try:
-            # Проверка по ID чата/канала
-            if hasattr(chat, 'id'):
-                if str(chat.id) in campaign.target_chats.split(','):
+            # Проверка по ID чата/канала и username
+            if hasattr(chat, 'id') or (hasattr(chat, 'username') and chat.username):
+                # campaign.telegram_chats уже список (JSON), не строка
+                target_chats = campaign.telegram_chats if isinstance(campaign.telegram_chats, list) else campaign.telegram_chats.split(',')
+                
+                # Проверка по ID чата
+                if hasattr(chat, 'id') and str(chat.id) in target_chats:
                     return True
-            
-            # Проверка по username чата/канала
-            if hasattr(chat, 'username') and chat.username:
-                if chat.username.lower() in campaign.target_chats.lower():
-                    return True
+                    
+                # Проверка по username чата (с @ и без @)
+                if hasattr(chat, 'username') and chat.username:
+                    username_variants = [chat.username.lower(), f"@{chat.username.lower()}"]
+                    for target in target_chats:
+                        if target.lower() in username_variants:
+                            return True
             
             # Проверка по ключевым словам
             if campaign.keywords and message.text:
-                keywords = [kw.strip().lower() for kw in campaign.keywords.split(',')]
+                # campaign.keywords уже список (JSON), не строка
+                if isinstance(campaign.keywords, list):
+                    keywords = [kw.strip().lower() for kw in campaign.keywords]
+                else:
+                    # Поддержка старого формата (строка с запятыми)
+                    keywords = [kw.strip().lower() for kw in campaign.keywords.split(',')]
+                    
                 message_text = message.text.lower()
                 
                 for keyword in keywords:
@@ -232,7 +244,7 @@ class TelegramAgentAppPlatform:
             # Генерация ответа через AI
             response = await self._generate_ai_response(context, campaign)
             
-            if response and campaign.auto_reply:
+            if response:
                 # Отправка автоответа
                 await self._send_response(message, response, campaign)
             
@@ -263,8 +275,23 @@ class TelegramAgentAppPlatform:
                 response = await self.claude_client.generate_response(prompt)
                 return response
             else:
-                print("⚠️ AI клиенты недоступны")
-                return None
+                print("⚠️ AI клиенты недоступны, используем фоллбэк ответы")
+                # Фоллбэк на статичные ответы из кампании
+                if campaign.example_replies:
+                    message_lower = context.get('message', '').lower()
+                    
+                    # Простой выбор ответа на основе содержания сообщения
+                    if any(word in message_lower for word in ['привет', 'hello', 'hi']):
+                        return campaign.example_replies.get('greeting', 'Привет! 👋')
+                    elif any(word in message_lower for word in ['спасибо', 'thanks', 'благодарю']):
+                        return campaign.example_replies.get('thanks', 'Пожалуйста! 😊')
+                    elif any(word in message_lower for word in ['помощь', 'help', 'вопрос', 'задача']):
+                        return campaign.example_replies.get('help', 'Конечно, помогу! 🤔')
+                    else:
+                        # Возвращаем базовый ответ
+                        return "Привет! Я получил ваше сообщение. В данный момент AI временно недоступен, но я все равно здесь! 🤖"
+                else:
+                    return "Привет! Я вижу ваше сообщение. Спасибо за обращение! 👋"
                 
         except Exception as e:
             print(f"❌ Ошибка генерации AI ответа: {e}")
@@ -273,13 +300,8 @@ class TelegramAgentAppPlatform:
     async def _send_response(self, original_message: Message, response: str, campaign: Campaign):
         """Отправка ответа"""
         try:
-            if campaign.reply_mode == 'reply':
-                # Ответ на сообщение
-                await original_message.reply(response)
-            elif campaign.reply_mode == 'message':
-                # Обычное сообщение в чат
-                await self.client.send_message(original_message.chat_id, response)
-            
+            # Отправляем ответ на сообщение (самый простой способ)
+            await original_message.reply(response)
             print(f"✅ Ответ отправлен для кампании: {campaign.name}")
             
         except Exception as e:
