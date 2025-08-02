@@ -15,7 +15,9 @@ class CampaignCreate(BaseModel):
     telegram_chats: List[str]
     keywords: List[str]
     telegram_account: str
-    claude_agent_id: str
+    ai_provider: str = "claude"
+    claude_agent_id: Optional[str] = None
+    openai_model: str = "gpt-4"
     context_messages_count: int = 3
     system_instruction: str
     example_replies: Optional[dict] = None
@@ -27,7 +29,9 @@ class CampaignUpdate(BaseModel):
     telegram_chats: Optional[List[str]] = None
     keywords: Optional[List[str]] = None
     telegram_account: Optional[str] = None
+    ai_provider: Optional[str] = None
     claude_agent_id: Optional[str] = None
+    openai_model: Optional[str] = None
     context_messages_count: Optional[int] = None
     system_instruction: Optional[str] = None
     example_replies: Optional[dict] = None
@@ -82,7 +86,9 @@ async def create_campaign(campaign_data: CampaignCreate, db: Session = Depends(g
         telegram_chats=campaign_data.telegram_chats,
         keywords=campaign_data.keywords,
         telegram_account=campaign_data.telegram_account,
+        ai_provider=campaign_data.ai_provider,
         claude_agent_id=campaign_data.claude_agent_id,
+        openai_model=campaign_data.openai_model,
         context_messages_count=campaign_data.context_messages_count,
         system_instruction=campaign_data.system_instruction,
         example_replies=campaign_data.example_replies,
