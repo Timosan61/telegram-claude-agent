@@ -13,7 +13,15 @@ from sqlalchemy.orm import Session
 from database.models.base import SessionLocal
 from database.models.campaign import Campaign
 from database.models.log import ActivityLog
-from utils.claude.client import ClaudeClient
+
+# Опциональный импорт Claude Client
+try:
+    from utils.claude.client import ClaudeClient
+    CLAUDE_AVAILABLE = True
+except ImportError:
+    CLAUDE_AVAILABLE = False
+    print("⚠️ ClaudeClient недоступен - отключен anthropic")
+
 from utils.openai.client import OpenAIClient
 
 # Опциональный импорт ZepMemoryManager
@@ -50,12 +58,16 @@ class TelegramAgentAppPlatform:
             print("⚠️ Используется файловая сессия (локальная разработка)")
         
         # AI клиенты - инициализируем с обработкой ошибок
-        try:
-            self.claude_client = ClaudeClient()
-            print("✅ Claude Client доступен")
-        except Exception as e:
-            print(f"⚠️ Claude Client недоступен: {e}")
+        if CLAUDE_AVAILABLE:
+            try:
+                self.claude_client = ClaudeClient()
+                print("✅ Claude Client доступен")
+            except Exception as e:
+                print(f"⚠️ Claude Client недоступен: {e}")
+                self.claude_client = None
+        else:
             self.claude_client = None
+            print("⚠️ Claude Client отключен - используем только OpenAI")
         
         try:
             self.openai_client = OpenAIClient()
