@@ -2,15 +2,15 @@
 python-dotenv==1.0.0
 
 # Database
-sqlalchemy==2.0.25
+sqlalchemy==1.4.46
 
 # AI Integration
 openai==1.3.0
 
 # HTTP & API
 requests==2.31.0
-fastapi==0.104.1
-uvicorn==0.24.0
+fastapi==0.95.0
+uvicorn==0.20.0
 
 # Telegram Integration - App Platform compatible
 telethon==1.30.3
