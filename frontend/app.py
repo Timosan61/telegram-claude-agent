@@ -109,11 +109,16 @@ def main():
     st.sidebar.title("Навигация")
     page = st.sidebar.selectbox(
         "Выберите страницу",
-        ["📋 Кампании", "💬 Чаты", "📊 Статистика", "📝 Логи активности", "⚙️ Настройки"]
+        ["🏢 Компания", "📋 Кампании", "💬 Чаты", "📊 Статистика", "📝 Логи активности", "⚙️ Настройки"]
     )
     
     # Отображение выбранной страницы
-    if page == "📋 Кампании":
+    if page == "🏢 Компания":
+        if server_status:
+            show_company_page()
+        else:
+            show_demo_company_page()
+    elif page == "📋 Кампании":
         if server_status:
             show_campaigns_page()
         else:
@@ -1201,6 +1206,365 @@ def show_demo_chats_page():
         st.write("**Последняя активность:** 02.08.2025 15:45")
         st.write("**Последнее сообщение:** Новая версия Python 3.12 выпущена...")
         st.write("**Статус:** 🟢 Подключен")
+
+
+def show_company_page():
+    """Страница настройки компании"""
+    st.header("🏢 Настройка компании")
+    
+    # Получаем текущие настройки компании
+    company_data = make_api_request("/company/settings")
+    
+    # Если настроек нет, создаем новые
+    if company_data is None:
+        company_data = {
+            "name": "",
+            "description": "",
+            "telegram_accounts": [],
+            "ai_providers": {
+                "openai": {"enabled": False, "default_model": "gpt-4"},
+                "claude": {"enabled": False, "default_agent": ""}
+            },
+            "default_settings": {
+                "context_messages_count": 3,
+                "response_delay": 1.0,
+                "auto_reply": True
+            }
+        }
+    
+    # Основная информация о компании
+    st.subheader("📋 Основная информация")
+    
+    with st.form("company_info_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            company_name = st.text_input(
+                "Название компании*",
+                value=company_data.get('name', ''),
+                help="Название вашей компании или организации"
+            )
+            
+            company_website = st.text_input(
+                "Веб-сайт",
+                value=company_data.get('website', ''),
+                help="Официальный сайт компании (опционально)"
+            )
+        
+        with col2:
+            company_email = st.text_input(
+                "Email контакт",
+                value=company_data.get('email', ''),
+                help="Контактный email для уведомлений"
+            )
+            
+            timezone = st.selectbox(
+                "Часовой пояс",
+                options=["UTC", "Europe/Moscow", "America/New_York", "Asia/Tokyo", "Europe/London"],
+                index=0 if not company_data.get('timezone') else ["UTC", "Europe/Moscow", "America/New_York", "Asia/Tokyo", "Europe/London"].index(company_data.get('timezone', 'UTC')),
+                help="Основной часовой пояс компании"
+            )
+        
+        company_description = st.text_area(
+            "Описание компании",
+            value=company_data.get('description', ''),
+            height=100,
+            help="Краткое описание деятельности компании"
+        )
+        
+        if st.form_submit_button("💾 Сохранить информацию", type="primary"):
+            info_data = {
+                "name": company_name,
+                "website": company_website,
+                "email": company_email,
+                "timezone": timezone,
+                "description": company_description
+            }
+            
+            response = make_api_request("/company/settings", method="PUT", data=info_data)
+            if response:
+                st.success("✅ Информация о компании сохранена!")
+                time.sleep(1)
+                st.rerun()
+    
+    st.divider()
+    
+    # Настройки Telegram аккаунтов
+    st.subheader("📱 Telegram аккаунты")
+    
+    telegram_accounts = company_data.get('telegram_accounts', [])
+    
+    if telegram_accounts:
+        st.write("**Настроенные аккаунты:**")
+        for i, account in enumerate(telegram_accounts):
+            col1, col2, col3 = st.columns([3, 2, 1])
+            
+            with col1:
+                st.write(f"📱 **{account['name']}** ({account['phone']})")
+                status_color = "🟢" if account.get('is_active', False) else "🔴"
+                st.write(f"Статус: {status_color} {'Активен' if account.get('is_active', False) else 'Неактивен'}")
+            
+            with col2:
+                st.write(f"Кампаний: {account.get('campaigns_count', 0)}")
+                last_used = account.get('last_used')
+                if last_used:
+                    st.write(f"Последнее использование: {last_used}")
+            
+            with col3:
+                if st.button("🗑️", key=f"delete_account_{i}", help="Удалить аккаунт"):
+                    # Удаление аккаунта
+                    response = make_api_request(f"/company/telegram-accounts/{account['id']}", method="DELETE")
+                    if response:
+                        st.success("Аккаунт удален!")
+                        st.rerun()
+    else:
+        st.info("📝 Telegram аккаунты не настроены")
+    
+    # Форма добавления нового аккаунта
+    with st.expander("➕ Добавить новый Telegram аккаунт"):
+        with st.form("add_telegram_account"):
+            st.write("**Настройка нового Telegram аккаунта:**")
+            
+            account_name = st.text_input(
+                "Название аккаунта*",
+                help="Удобное название для идентификации аккаунта"
+            )
+            
+            phone_number = st.text_input(
+                "Номер телефона*",
+                help="Номер телефона в международном формате (+7XXXXXXXXXX)"
+            )
+            
+            api_id = st.text_input(
+                "Telegram API ID*",
+                help="API ID получен на my.telegram.org/apps"
+            )
+            
+            api_hash = st.text_input(
+                "Telegram API Hash*",
+                type="password",
+                help="API Hash получен на my.telegram.org/apps"
+            )
+            
+            if st.form_submit_button("📱 Добавить аккаунт", type="primary"):
+                if all([account_name, phone_number, api_id, api_hash]):
+                    account_data = {
+                        "name": account_name,
+                        "phone": phone_number,
+                        "api_id": api_id,
+                        "api_hash": api_hash
+                    }
+                    
+                    response = make_api_request("/company/telegram-accounts", method="POST", data=account_data)
+                    if response:
+                        st.success("✅ Аккаунт добавлен! Потребуется верификация по SMS.")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    st.error("❌ Все поля обязательны для заполнения")
+    
+    st.divider()
+    
+    # Настройки AI провайдеров
+    st.subheader("🧠 AI провайдеры")
+    
+    tab1, tab2 = st.tabs(["🤖 OpenAI", "🧠 Claude"])
+    
+    with tab1:
+        openai_settings = company_data.get('ai_providers', {}).get('openai', {})
+        
+        with st.form("openai_settings"):
+            openai_enabled = st.checkbox(
+                "Включить OpenAI",
+                value=openai_settings.get('enabled', False)
+            )
+            
+            if openai_enabled:
+                openai_api_key = st.text_input(
+                    "OpenAI API Key*",
+                    type="password",
+                    help="API ключ из platform.openai.com"
+                )
+                
+                default_model = st.selectbox(
+                    "Модель по умолчанию",
+                    options=["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo-preview"],
+                    index=["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo-preview"].index(openai_settings.get('default_model', 'gpt-4'))
+                )
+                
+                max_tokens = st.number_input(
+                    "Максимум токенов",
+                    min_value=100,
+                    max_value=4000,
+                    value=openai_settings.get('max_tokens', 1500)
+                )
+                
+                temperature = st.slider(
+                    "Температура (креативность)",
+                    min_value=0.0,
+                    max_value=2.0,
+                    value=openai_settings.get('temperature', 0.7),
+                    step=0.1
+                )
+            
+            if st.form_submit_button("💾 Сохранить настройки OpenAI"):
+                openai_data = {
+                    "enabled": openai_enabled,
+                    "default_model": default_model if openai_enabled else "gpt-4",
+                    "max_tokens": max_tokens if openai_enabled else 1500,
+                    "temperature": temperature if openai_enabled else 0.7
+                }
+                
+                if openai_enabled and 'openai_api_key' in locals():
+                    openai_data["api_key"] = openai_api_key
+                
+                response = make_api_request("/company/ai-providers/openai", method="PUT", data=openai_data)
+                if response:
+                    st.success("✅ Настройки OpenAI сохранены!")
+    
+    with tab2:
+        claude_settings = company_data.get('ai_providers', {}).get('claude', {})
+        
+        with st.form("claude_settings"):
+            claude_enabled = st.checkbox(
+                "Включить Claude",
+                value=claude_settings.get('enabled', False)
+            )
+            
+            if claude_enabled:
+                claude_api_key = st.text_input(
+                    "Anthropic API Key*",
+                    type="password",
+                    help="API ключ из console.anthropic.com"
+                )
+                
+                default_agent = st.text_input(
+                    "Agent ID по умолчанию",
+                    value=claude_settings.get('default_agent', ''),
+                    help="ID или alias Claude Code агента"
+                )
+                
+                max_tokens = st.number_input(
+                    "Максимум токенов",
+                    min_value=100,
+                    max_value=8000,
+                    value=claude_settings.get('max_tokens', 2000)
+                )
+            
+            if st.form_submit_button("💾 Сохранить настройки Claude"):
+                claude_data = {
+                    "enabled": claude_enabled,
+                    "default_agent": default_agent if claude_enabled else "",
+                    "max_tokens": max_tokens if claude_enabled else 2000
+                }
+                
+                if claude_enabled and 'claude_api_key' in locals():
+                    claude_data["api_key"] = claude_api_key
+                
+                response = make_api_request("/company/ai-providers/claude", method="PUT", data=claude_data)
+                if response:
+                    st.success("✅ Настройки Claude сохранены!")
+    
+    st.divider()
+    
+    # Настройки по умолчанию
+    st.subheader("⚙️ Настройки по умолчанию")
+    
+    default_settings = company_data.get('default_settings', {})
+    
+    with st.form("default_settings"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            context_messages_count = st.number_input(
+                "Контекстных сообщений",
+                min_value=1,
+                max_value=20,
+                value=default_settings.get('context_messages_count', 3),
+                help="Количество предыдущих сообщений для анализа"
+            )
+            
+            response_delay = st.number_input(
+                "Задержка ответа (сек)",
+                min_value=0.0,
+                max_value=10.0,
+                value=default_settings.get('response_delay', 1.0),
+                step=0.1,
+                help="Задержка перед отправкой ответа"
+            )
+        
+        with col2:
+            auto_reply = st.checkbox(
+                "Автоматические ответы",
+                value=default_settings.get('auto_reply', True),
+                help="Включить автоматические ответы на ключевые слова"
+            )
+            
+            work_hours_enabled = st.checkbox(
+                "Ограничить рабочими часами",
+                value=default_settings.get('work_hours_enabled', False),
+                help="Отвечать только в рабочие часы"
+            )
+            
+            if work_hours_enabled:
+                work_start = st.time_input(
+                    "Начало рабочего дня",
+                    value=datetime.strptime(default_settings.get('work_start', '09:00'), '%H:%M').time()
+                )
+                
+                work_end = st.time_input(
+                    "Конец рабочего дня",
+                    value=datetime.strptime(default_settings.get('work_end', '18:00'), '%H:%M').time()
+                )
+        
+        if st.form_submit_button("💾 Сохранить настройки по умолчанию"):
+            settings_data = {
+                "context_messages_count": context_messages_count,
+                "response_delay": response_delay,
+                "auto_reply": auto_reply,
+                "work_hours_enabled": work_hours_enabled
+            }
+            
+            if work_hours_enabled:
+                settings_data["work_start"] = work_start.strftime('%H:%M')
+                settings_data["work_end"] = work_end.strftime('%H:%M')
+            
+            response = make_api_request("/company/default-settings", method="PUT", data=settings_data)
+            if response:
+                st.success("✅ Настройки по умолчанию сохранены!")
+
+
+def show_demo_company_page():
+    """Демо-страница компании"""
+    st.header("🏢 Настройка компании (Демо-режим)")
+    st.warning("⚠️ Backend недоступен - показан демо-интерфейс")
+    
+    st.info("В этом разделе вы можете настроить основную информацию о компании, Telegram аккаунты и AI провайдеры")
+    
+    # Демо информация о компании
+    st.subheader("📋 Основная информация")
+    with st.expander("Информация о компании", expanded=True):
+        st.write("**Название:** TechCorp Solutions")
+        st.write("**Email:** contact@techcorp.com")
+        st.write("**Часовой пояс:** Europe/Moscow")
+        st.write("**Описание:** Компания по разработке ИИ-решений")
+    
+    # Демо аккаунты
+    st.subheader("📱 Telegram аккаунты")
+    with st.expander("Настроенные аккаунты"):
+        st.write("📱 **Основной аккаунт** (+79001234567)")
+        st.write("Статус: 🟢 Активен")
+        st.write("Кампаний: 3")
+    
+    # Демо AI провайдеры
+    st.subheader("🧠 AI провайдеры")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("🤖 **OpenAI:** 🟢 Настроен")
+        st.write("Модель: gpt-4")
+    with col2:
+        st.write("🧠 **Claude:** 🟢 Настроен")
+        st.write("Agent: claude-support-agent")
 
 
 if __name__ == "__main__":
