@@ -10,7 +10,7 @@ sqlalchemy==1.4.46
 psycopg2-binary==2.9.7
 
 # AI Integration  
-openai==1.35.0
+openai>=1.0.0,<2.0.0
 
 # HTTP & API
 requests==2.31.0

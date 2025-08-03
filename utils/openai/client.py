@@ -31,12 +31,24 @@ class OpenAIClient:
             # Установка переменной окружения для надежности
             os.environ['OPENAI_API_KEY'] = self.api_key
             
-            # Простая инициализация без проблемных параметров
-            self.client = OpenAI(api_key=self.api_key)
+            # Защищенная инициализация с обработкой различных версий OpenAI
+            init_params = {"api_key": self.api_key}
+            
+            # Попробуем инициализацию без дополнительных параметров
+            self.client = OpenAI(**init_params)
             print("✅ OpenAI client успешно инициализирован")
             
+        except TypeError as te:
+            if "proxies" in str(te):
+                print("⚠️ Обнаружена проблема с параметром 'proxies', используем базовую инициализацию")
+                # Fallback инициализация только с API ключом
+                self.client = OpenAI(api_key=self.api_key)
+                print("✅ OpenAI client инициализирован через fallback")
+            else:
+                print(f"❌ Ошибка типа при инициализации OpenAI клиента: {te}")
+                raise ValueError(f"Не удалось инициализировать OpenAI клиента: {te}")
         except Exception as e:
-            print(f"❌ Ошибка инициализации OpenAI клиента: {e}")
+            print(f"❌ Общая ошибка инициализации OpenAI клиента: {e}")
             raise ValueError(f"Не удалось инициализировать OpenAI клиента: {e}")
         
         
