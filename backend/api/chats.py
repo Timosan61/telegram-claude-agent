@@ -72,11 +72,14 @@ async def get_chat_messages(
         chat_entity = await telegram_agent.client.get_entity(chat_id)
         
         messages = []
-        async for message in telegram_agent.client.iter_messages(
-            chat_entity, 
-            limit=limit,
-            max_id=before_message_id
-        ):
+        # Если before_message_id не указан, не передаем max_id
+        iter_kwargs = {
+            "limit": limit
+        }
+        if before_message_id is not None:
+            iter_kwargs["max_id"] = before_message_id
+            
+        async for message in telegram_agent.client.iter_messages(chat_entity, **iter_kwargs):
             # Получаем информацию об отправителе
             sender_info = "Unknown"
             if message.sender:
