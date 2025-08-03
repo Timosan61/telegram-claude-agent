@@ -5,6 +5,10 @@ import json
 from datetime import datetime, timedelta
 import time
 
+# Импорт модульных страниц
+from pages.analytics import show_analytics_page, show_demo_analytics_page
+from pages.statistics import show_statistics_page, show_demo_statistics_page
+
 # Конфигурация страницы
 st.set_page_config(
     page_title="Telegram Claude Agent",
@@ -109,7 +113,7 @@ def main():
     st.sidebar.title("Навигация")
     page = st.sidebar.selectbox(
         "Выберите страницу",
-        ["🏢 Компания", "📋 Кампании", "💬 Чаты", "📊 Статистика", "📝 Логи активности", "⚙️ Настройки"]
+        ["🏢 Компания", "📋 Кампании", "💬 Чаты", "📊 Статистика", "📈 Аналитика чатов", "📝 Логи активности", "⚙️ Настройки"]
     )
     
     # Отображение выбранной страницы
@@ -133,6 +137,11 @@ def main():
             show_statistics_page()
         else:
             show_demo_statistics_page()
+    elif page == "📈 Аналитика чатов":
+        if server_status:
+            show_analytics_page()
+        else:
+            show_demo_analytics_page()
     elif page == "📝 Логи активности":
         if server_status:
             show_logs_page()
@@ -457,112 +466,6 @@ def delete_campaign(campaign_id):
         st.info("🔄 Кэш кампаний автоматически обновлен")
 
 
-def show_statistics_page():
-    """Страница статистики"""
-    st.header("📊 Статистика системы")
-    
-    # Общая статистика
-    overview_data = make_api_request("/logs/stats/overview")
-    
-    if overview_data:
-        # Метрики кампаний
-        st.subheader("🎯 Кампании")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric(
-                "Всего кампаний",
-                overview_data['campaigns']['total']
-            )
-        
-        with col2:
-            st.metric(
-                "Активных",
-                overview_data['campaigns']['active'],
-                delta=overview_data['campaigns']['active'] - overview_data['campaigns']['inactive']
-            )
-        
-        with col3:
-            st.metric(
-                "Неактивных",
-                overview_data['campaigns']['inactive']
-            )
-        
-        # Метрики ответов
-        st.subheader("💬 Ответы агента")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric(
-                "Всего ответов",
-                overview_data['responses']['total']
-            )
-        
-        with col2:
-            st.metric(
-                "За 24 часа",
-                overview_data['responses']['last_24h']
-            )
-        
-        with col3:
-            st.metric(
-                "Успешных за 24ч",
-                overview_data['responses']['status_24h'].get('sent', 0)
-            )
-        
-        with col4:
-            st.metric(
-                "Успешность %",
-                f"{overview_data['success_rate_24h']}%"
-            )
-        
-        # Статистика по статусам
-        if overview_data['responses']['status_24h']:
-            st.subheader("📈 Статусы ответов за 24 часа")
-            
-            status_data = overview_data['responses']['status_24h']
-            
-            # Создание DataFrame для графика
-            df_status = pd.DataFrame(list(status_data.items()), columns=['Статус', 'Количество'])
-            
-            if not df_status.empty:
-                # Перевод статусов
-                status_translation = {
-                    'sent': 'Отправлено',
-                    'failed': 'Ошибки',
-                    'pending': 'В очереди'
-                }
-                df_status['Статус'] = df_status['Статус'].map(status_translation)
-                
-                # График
-                st.bar_chart(df_status.set_index('Статус'))
-    
-    # Статистика по кампаниям
-    campaigns_data = make_api_request("/campaigns/")
-    if campaigns_data:
-        st.subheader("📋 Статистика по кампаниям")
-        
-        campaign_stats = []
-        for campaign in campaigns_data:
-            stats = make_api_request(f"/logs/campaign/{campaign['id']}/stats")
-            if stats:
-                campaign_stats.append(stats)
-        
-        if campaign_stats:
-            df_campaigns = pd.DataFrame(campaign_stats)
-            
-            # Отображение таблицы
-            st.dataframe(
-                df_campaigns[['campaign_name', 'total_responses', 'responses_24h', 'success_rate', 'avg_processing_time_ms']],
-                column_config={
-                    'campaign_name': 'Название кампании',
-                    'total_responses': 'Всего ответов',
-                    'responses_24h': 'За 24ч',
-                    'success_rate': 'Успешность %',
-                    'avg_processing_time_ms': 'Среднее время (мс)'
-                },
-                use_container_width=True
-            )
 
 
 def show_logs_page():
@@ -933,18 +836,6 @@ def show_demo_campaigns_page():
         st.write("**Статус:** 🟢 Активна")
 
 
-def show_demo_statistics_page():
-    """Демо-страница статистики"""
-    st.header("📊 Статистика системы (Демо-режим)")
-    st.warning("⚠️ Backend недоступен - показаны демо-данные")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Всего кампаний", "3")
-    with col2:
-        st.metric("Активных", "2")
-    with col3:
-        st.metric("Ответов за 24ч", "15")
 
 
 def show_demo_logs_page():
