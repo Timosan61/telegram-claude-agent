@@ -1,0 +1,21 @@
+{
+  "session_string": "1ApWapzMBu3hdNPOfXeXWyKk8er9h8cGL10vxI_AY4RS5hFyzGNQ5PDVANHv0qPyCiDMT5uw3FfGX1ivhrYOEEs9SR4CJu6ieCaFCFjBEgGYBTLZ88qoYyg1eziYHEgf9F80QQ7GMZqeCzVsPi8wnYBM8Vvv2wFxcq7AvYPQyLrUtbFSTR7Q8wbdJp36xF2S-Zu6LpTJaeJwDoBaIE6Kgs14zxopnWr3PFOaH266f2kF5I_HjgEVaUB3SzDGQW9HZWZ9F8LBCw5VW-uQfJNmoQjiI9HpXp1zhmQTD4e6z8QukHSeNbW3edkDwPr6z47Or6BuZzNYTxgDSuOnCPIkRKTEEpUZYAwk=",
+  "session_base64": "MUFwV2Fwek1CdTNoZE5QT2ZYZVhXeUtrOGVyOWg4Y0dMMTB2eElfQVk0UlM1aEZ5ekdOUTVQRFZBTkh2MHFQeUNpRE1UNXV3M0ZmR1gxaXZocllPRUVzOVNSNENKdTZpZUNhRkNGakJFZ0dZQlRMWjg4cW9ZeWcxZXppWUhFZ2Y5RjgwUVE3R01acWVDelZzUGk4d25ZQk04VnZ2MndGeGNxN0F2WVBReUxyVXRiRlNUUjdROHdiZEpwMzZ4RjJTLVp1NkxwVEphZUp3RG9CYUlFNktnczE0enhvcG5XcjNQRk9hSDI2NmYya0Y1SV9IamdFVmFVQjNTekRHUVc5SFpXWjlGOExCQ3c1VlctdVFmSk5tb1FqaUk5SHBYcDF6aG1RVEQ0ZTZ6OFF1a0hTZU5iVzNlZGtEd1ByNno0N09yNkJ1WnpOWVR4Z0RTdU9uQ1BJa1JLVEVFcFVaWUF3az0=",
+  "user_info": {
+    "id": 7586640109,
+    "first_name": "Артем Алейников",
+    "last_name": null,
+    "username": "myassyst",
+    "phone": "79885569348"
+  },
+  "api_credentials": {
+    "api_id": 21220429,
+    "api_hash": "2f4d35cf3aa6bfcfae8f655547084a44",
+    "phone": "+79885569348"
+  },
+  "creation_method": "alternative_phone",
+  "instructions": {
+    "app_platform": "Добавьте TELEGRAM_SESSION_STRING в переменные окружения DigitalOcean App",
+    "format": "Environment Variables → TELEGRAM_SESSION_STRING = {session_string}"
+  }
+}
