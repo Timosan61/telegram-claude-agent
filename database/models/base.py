@@ -16,9 +16,11 @@ def get_database_url():
         # Извлекаем project_id из URL вида https://project_id.supabase.co
         project_id = supabase_url.replace("https://", "").replace(".supabase.co", "")
         postgres_url = f"postgresql://postgres.{project_id}:{supabase_service_key}@aws-0-eu-north-1.pooler.supabase.com:6543/postgres"
+        print(f"🔗 Подключение к Supabase: postgresql://postgres.{project_id}:***@aws-0-eu-north-1.pooler.supabase.com:6543/postgres")
         return postgres_url
     
     # Fallback к DATABASE_URL или SQLite для локальной разработки
+    print("🔄 Fallback к SQLite для локальной разработки")
     return os.getenv("DATABASE_URL", "sqlite:///./campaigns.db")
 
 DATABASE_URL = get_database_url()
