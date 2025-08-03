@@ -152,9 +152,22 @@ def show_campaigns_page():
     if campaigns_data is None:
         return
     
-    # Кнопка создания новой кампании
-    if st.button("➕ Создать новую кампанию", type="primary"):
-        st.session_state.show_create_form = True
+    # Кнопки управления
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("➕ Создать новую кампанию", type="primary"):
+            st.session_state.show_create_form = True
+    
+    with col2:
+        if st.button("🔄 Обновить кэш кампаний", help="Принудительно обновить кэш активных кампаний"):
+            refresh_response = make_api_request("/campaigns/refresh-cache", method="POST")
+            if refresh_response:
+                st.success("✅ Кэш кампаний обновлен!")
+                st.info("💡 Изменения в инструкциях применятся в течение 10 секунд")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("❌ Ошибка обновления кэша")
     
     # Форма создания кампании
     if st.session_state.get('show_create_form', False):
@@ -414,6 +427,10 @@ def show_campaign_form(edit_data=None):
                 success_message = "✅ Кампания обновлена!" if is_edit else "✅ Кампания создана!"
                 st.success(success_message)
                 
+                # Показываем статус обновления кэша
+                if is_edit:
+                    st.info("🔄 Кэш кампаний автоматически обновлен. Изменения применятся в течение 10 секунд.")
+                
                 # Сброс состояния формы
                 st.session_state.show_create_form = False
                 st.session_state.show_edit_form = False
@@ -429,6 +446,7 @@ def toggle_campaign_status(campaign_id):
     response = make_api_request(f"/campaigns/{campaign_id}/toggle", method="POST")
     if response:
         st.success(f"✅ {response['message']}")
+        st.info("🔄 Кэш кампаний автоматически обновлен")
 
 
 def delete_campaign(campaign_id):
@@ -436,6 +454,7 @@ def delete_campaign(campaign_id):
     response = make_api_request(f"/campaigns/{campaign_id}", method="DELETE")
     if response is not None:  # 204 статус не возвращает JSON
         st.success("✅ Кампания удалена!")
+        st.info("🔄 Кэш кампаний автоматически обновлен")
 
 
 def show_statistics_page():
@@ -1060,6 +1079,12 @@ def show_chat_messages():
                 
                 with col1:
                     st.markdown(f"**{message_type} {message['sender']}** ({time_str})")
+                    
+                    # Показываем информацию о реплае, если есть
+                    if message.get('reply_info'):
+                        reply_info = message['reply_info']
+                        st.info(f"↩️ **Ответ на сообщение от {reply_info['original_sender']}:**\n\"{reply_info['original_text']}\"")
+                    
                     if message['text']:
                         st.write(message['text'])
                     
@@ -1199,13 +1224,40 @@ def show_demo_chats_page():
     
     st.info("В этом разделе вы можете мониторить активность в Telegram-чатах в реальном времени")
     
-    # Пример активного чата
+    # Пример активного чата с новой структурой
     with st.expander("💬 @tech_news_channel", expanded=True):
-        st.write("**ID чата:** `-1001234567890`")
-        st.write("**Кампаний:** 2")
-        st.write("**Последняя активность:** 02.08.2025 15:45")
-        st.write("**Последнее сообщение:** Новая версия Python 3.12 выпущена...")
-        st.write("**Статус:** 🟢 Подключен")
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.write("**ID чата:** `-1001234567890`")
+            st.write("**Кампаний:** 2")
+            st.write("**Последняя активность:** 02.08.2025 15:45")
+            st.write("**Последнее сообщение:** Новая версия Python 3.12 выпущена...")
+            st.write("**Статус:** 🟢 Подключен")
+        
+        with col2:
+            st.button("📜 Сообщения", key="demo_messages", disabled=True)
+            st.button("✉️ Отправить", key="demo_send", disabled=True) 
+            st.button("ℹ️ Инфо", key="demo_info", disabled=True)
+    
+    # Демо сообщения с контекстом
+    st.subheader("📜 Пример сообщений с контекстом")
+    with st.expander("Пример переписки с контекстом постов"):
+        # Сообщение с ответом
+        st.markdown("**👤 @user1** (14:30)")
+        st.info("↩️ **Ответ на сообщение от @admin:**\n\"Кто может объяснить новые изменения в API?\"")
+        st.write("Я могу помочь с объяснением изменений в новой версии API")
+        
+        # Ответ бота
+        st.info("🟢 **Ответ бота** (кл.слово: API):\nОтличный вопрос! Новые изменения в API включают...")
+        
+        st.divider()
+        
+        # Обычное сообщение
+        st.markdown("**👤 @user2** (14:32)")
+        st.write("Спасибо за объяснение!")
+        
+        st.divider()
 
 
 def show_company_page():

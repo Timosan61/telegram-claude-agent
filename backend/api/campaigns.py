@@ -6,6 +6,14 @@ from pydantic import BaseModel
 from database.models.base import get_db
 from database.models.campaign import Campaign
 
+# Глобальная переменная для доступа к telegram_agent
+telegram_agent = None
+
+def set_telegram_agent(agent):
+    """Установка глобального экземпляра telegram агента"""
+    global telegram_agent
+    telegram_agent = agent
+
 router = APIRouter()
 
 
@@ -99,6 +107,10 @@ async def create_campaign(campaign_data: CampaignCreate, db: Session = Depends(g
     db.commit()
     db.refresh(campaign)
     
+    # Принудительное обновление кэша
+    if telegram_agent:
+        telegram_agent.force_campaigns_refresh()
+    
     return campaign.to_dict()
 
 
@@ -125,6 +137,10 @@ async def update_campaign(
     db.commit()
     db.refresh(campaign)
     
+    # Принудительное обновление кэша
+    if telegram_agent:
+        telegram_agent.force_campaigns_refresh()
+    
     return campaign.to_dict()
 
 
@@ -141,6 +157,10 @@ async def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
     
     db.delete(campaign)
     db.commit()
+    
+    # Принудительное обновление кэша
+    if telegram_agent:
+        telegram_agent.force_campaigns_refresh()
 
 
 @router.post("/{campaign_id}/toggle", response_model=dict)
@@ -158,9 +178,26 @@ async def toggle_campaign_status(campaign_id: int, db: Session = Depends(get_db)
     db.commit()
     db.refresh(campaign)
     
+    # Принудительное обновление кэша
+    if telegram_agent:
+        telegram_agent.force_campaigns_refresh()
+    
     return {
         "id": campaign.id,
         "name": campaign.name,
         "active": campaign.active,
         "message": f"Кампания {'активирована' if campaign.active else 'деактивирована'}"
     }
+
+
+@router.post("/refresh-cache", response_model=dict)
+async def refresh_campaigns_cache():
+    """Принудительное обновление кэша кампаний"""
+    if telegram_agent:
+        telegram_agent.force_campaigns_refresh()
+        return {"message": "Кэш кампаний будет обновлен при следующем запросе"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram агент недоступен"
+        )

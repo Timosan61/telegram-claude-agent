@@ -12,6 +12,8 @@ from database.models.base import get_db, create_tables
 from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
 from backend.api.chats import router as chats_router, set_telegram_agent
+from backend.api.campaigns import set_telegram_agent as set_campaigns_agent
+from backend.api.company import router as company_router
 from backend.core.telegram_agent import TelegramAgent
 
 # Загрузка переменных окружения
@@ -50,8 +52,9 @@ async def startup_event():
     telegram_agent = TelegramAgent()
     await telegram_agent.initialize()
     
-    # Передаем агента в роутер чатов
+    # Передаем агента в роутеры
     set_telegram_agent(telegram_agent)
+    set_campaigns_agent(telegram_agent)
     
     print("🚀 Telegram Claude Agent запущен!")
 
@@ -91,6 +94,7 @@ async def health_check():
 app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(logs_router, prefix="/logs", tags=["logs"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
+app.include_router(company_router, prefix="/company", tags=["company"])
 
 
 if __name__ == "__main__":

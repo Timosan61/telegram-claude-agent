@@ -105,6 +105,35 @@ async def get_chat_messages(
                     "processing_time_ms": log_entry.processing_time_ms
                 }
             
+            # Информация о реплае/контексте поста
+            reply_info = None
+            if message.reply_to and message.reply_to.reply_to_msg_id:
+                try:
+                    # Получаем оригинальное сообщение
+                    original_message = await telegram_agent.client.get_messages(
+                        chat_entity, 
+                        ids=[message.reply_to.reply_to_msg_id]
+                    )
+                    if original_message and len(original_message) > 0 and original_message[0]:
+                        orig_msg = original_message[0]
+                        orig_sender = "Unknown"
+                        if orig_msg.sender:
+                            if hasattr(orig_msg.sender, 'username') and orig_msg.sender.username:
+                                orig_sender = f"@{orig_msg.sender.username}"
+                            elif hasattr(orig_msg.sender, 'first_name'):
+                                orig_sender = orig_msg.sender.first_name
+                                if hasattr(orig_msg.sender, 'last_name') and orig_msg.sender.last_name:
+                                    orig_sender += f" {orig_msg.sender.last_name}"
+                        
+                        reply_info = {
+                            "reply_to_message_id": message.reply_to.reply_to_msg_id,
+                            "original_sender": orig_sender,
+                            "original_text": (orig_msg.text or "")[:200] + ("..." if orig_msg.text and len(orig_msg.text) > 200 else ""),
+                            "original_date": orig_msg.date.isoformat()
+                        }
+                except Exception as e:
+                    print(f"Ошибка получения оригинального сообщения: {e}")
+            
             messages.append({
                 "id": message.id,
                 "text": message.text or "",
@@ -112,7 +141,8 @@ async def get_chat_messages(
                 "sender": sender_info,
                 "sender_id": str(message.sender_id) if message.sender_id else None,
                 "is_bot": bool(message.via_bot_id) or (message.sender and getattr(message.sender, 'bot', False)),
-                "bot_response": bot_response
+                "bot_response": bot_response,
+                "reply_info": reply_info
             })
         
         return {

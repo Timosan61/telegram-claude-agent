@@ -49,7 +49,8 @@ class TelegramAgent:
         # Кэш активных кампаний
         self.active_campaigns: List[Campaign] = []
         self.last_cache_update = 0
-        self.cache_ttl = 60  # 60 секунд
+        self.cache_ttl = 10  # 10 секунд для быстрого отклика на изменения
+        self.force_refresh = False  # Флаг принудительного обновления
         
         print("🤖 Telegram Agent инициализирован")
     
@@ -81,12 +82,12 @@ class TelegramAgent:
         """Проверка соединения с Telegram"""
         return self.client.is_connected()
     
-    async def refresh_campaigns_cache(self):
+    async def refresh_campaigns_cache(self, force: bool = False):
         """Обновление кэша активных кампаний"""
         current_time = time.time()
         
-        # Проверка TTL кэша
-        if current_time - self.last_cache_update < self.cache_ttl:
+        # Проверка TTL кэша или принудительного обновления
+        if not force and not self.force_refresh and current_time - self.last_cache_update < self.cache_ttl:
             return
         
         try:
@@ -94,6 +95,7 @@ class TelegramAgent:
             campaigns = db.query(Campaign).filter(Campaign.active == True).all()
             self.active_campaigns = campaigns
             self.last_cache_update = current_time
+            self.force_refresh = False  # Сбрасываем флаг
             
             print(f"🔄 Кэш кампаний обновлен: {len(campaigns)} активных кампаний")
             
@@ -101,6 +103,11 @@ class TelegramAgent:
             print(f"❌ Ошибка обновления кэша кампаний: {e}")
         finally:
             db.close()
+    
+    def force_campaigns_refresh(self):
+        """Установка флага принудительного обновления кэша"""
+        self.force_refresh = True
+        print("🔄 Запланировано принудительное обновление кэша кампаний")
     
     async def handle_new_message(self, event):
         """Обработчик новых сообщений"""
