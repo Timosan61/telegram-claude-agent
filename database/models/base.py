@@ -14,9 +14,12 @@ def get_database_url():
     # Проверяем наличие обеих переменных и что service key отличается от anon key
     anon_key = os.getenv("SUPABASE_ANON_KEY")
     
+    # Простая проверка что это JWT токен (3 части разделённые точками)
+    is_valid_jwt = len(supabase_service_key.split('.')) == 3 if supabase_service_key else False
+    
     if (supabase_url and supabase_service_key and 
         anon_key and supabase_service_key != anon_key and
-        "service_role" in supabase_service_key):
+        is_valid_jwt):
         
         # Формируем PostgreSQL connection string для Supabase
         # Извлекаем project_id из URL вида https://project_id.supabase.co
@@ -32,7 +35,8 @@ def get_database_url():
         print(f"  SUPABASE_ANON_KEY: {'✅' if anon_key else '❌'}")
         if supabase_service_key and anon_key:
             print(f"  Keys different: {'✅' if supabase_service_key != anon_key else '❌'}")
-            print(f"  Service role token: {'✅' if 'service_role' in supabase_service_key else '❌'}")
+            is_valid_jwt = len(supabase_service_key.split('.')) == 3 if supabase_service_key else False
+            print(f"  Valid JWT format: {'✅' if is_valid_jwt else '❌'}")
     
     # Fallback к DATABASE_URL или SQLite для локальной разработки
     print("🔄 Fallback к SQLite для локальной разработки")
