@@ -11,13 +11,28 @@ def get_database_url():
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") 
     
-    if supabase_url and supabase_service_key:
+    # Проверяем наличие обеих переменных и что service key отличается от anon key
+    anon_key = os.getenv("SUPABASE_ANON_KEY")
+    
+    if (supabase_url and supabase_service_key and 
+        anon_key and supabase_service_key != anon_key and
+        "service_role" in supabase_service_key):
+        
         # Формируем PostgreSQL connection string для Supabase
         # Извлекаем project_id из URL вида https://project_id.supabase.co
         project_id = supabase_url.replace("https://", "").replace(".supabase.co", "")
         postgres_url = f"postgresql://postgres.{project_id}:{supabase_service_key}@aws-0-eu-north-1.pooler.supabase.com:6543/postgres"
         print(f"🔗 Подключение к Supabase: postgresql://postgres.{project_id}:***@aws-0-eu-north-1.pooler.supabase.com:6543/postgres")
         return postgres_url
+    else:
+        # Отладочная информация
+        print(f"🔍 Debug info:")
+        print(f"  SUPABASE_URL: {'✅' if supabase_url else '❌'}")
+        print(f"  SUPABASE_SERVICE_ROLE_KEY: {'✅' if supabase_service_key else '❌'}")
+        print(f"  SUPABASE_ANON_KEY: {'✅' if anon_key else '❌'}")
+        if supabase_service_key and anon_key:
+            print(f"  Keys different: {'✅' if supabase_service_key != anon_key else '❌'}")
+            print(f"  Service role token: {'✅' if 'service_role' in supabase_service_key else '❌'}")
     
     # Fallback к DATABASE_URL или SQLite для локальной разработки
     print("🔄 Fallback к SQLite для локальной разработки")
