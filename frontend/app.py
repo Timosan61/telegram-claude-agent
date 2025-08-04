@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 import time
 
 # Импорт модульных страниц
-from pages.analytics import show_analytics_page, show_demo_analytics_page
-from pages.statistics import show_statistics_page, show_demo_statistics_page
+from frontend.pages.analytics import show_analytics_page, show_demo_analytics_page
+from frontend.pages.statistics import show_statistics_page, show_demo_statistics_page
 
 # Конфигурация страницы
 st.set_page_config(

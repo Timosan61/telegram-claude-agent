@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import time
 import json
 
-from components.api_client import api_client
+from frontend.components.api_client import api_client
 
 
 def show_analytics_page():
