@@ -18,6 +18,7 @@ from database.models.base import get_db, create_tables
 from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
 from backend.api.chats import router as chats_router, set_telegram_agent
+from backend.api.company import router as company_router
 from backend.core.telegram_agent_app_platform import get_telegram_agent, stop_telegram_agent
 
 # Загрузка переменных окружения
@@ -239,6 +240,7 @@ async def check_environment():
 app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(logs_router, prefix="/logs", tags=["logs"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
+app.include_router(company_router, prefix="/company", tags=["company"])
 
 if __name__ == "__main__":
     import uvicorn
