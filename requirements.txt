@@ -1,17 +1,26 @@
-# Streamlit Cloud Requirements - Python 3.13 Compatible
-# Core Framework
+# Full Project Requirements - Backend + Frontend
+# Core Framework 
 python-dotenv==1.0.0
+
+# Database
+sqlalchemy==1.4.46
+psycopg2-binary==2.9.7
+
+# AI Integration  
+openai>=1.0.0,<2.0.0
+
+# HTTP & API
+requests==2.31.0
+fastapi==0.95.0
+uvicorn==0.20.0
+
+# Telegram Integration - App Platform compatible
+telethon==1.34.0
 
 # Streamlit & Web Interface - Updated for modular architecture
 streamlit==1.28.1
 pandas>=2.2.0
 plotly>=5.17.0
 
-# HTTP & API - lightweight versions
-requests==2.31.0
-
 # Basic utilities
 python-dateutil==2.8.2
-
-# Note: Backend dependencies moved to requirements_backend.txt
-# This file is optimized for Streamlit Cloud deployment
