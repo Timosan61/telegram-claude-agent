@@ -208,7 +208,7 @@ class PerformanceMetrics(Base):
     chat_id = Column(String(255), nullable=True)
     
     # Дополнительные данные
-    metadata = Column(JSON)  # Дополнительная информация
+    extra_data = Column(JSON)  # Дополнительная информация
     
     def to_dict(self):
         return {
@@ -220,5 +220,5 @@ class PerformanceMetrics(Base):
             "source": self.source,
             "campaign_id": self.campaign_id,
             "chat_id": self.chat_id,
-            "metadata": self.metadata or {}
+            "extra_data": self.extra_data or {}
         }

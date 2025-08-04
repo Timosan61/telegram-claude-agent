@@ -103,7 +103,7 @@ async def record_performance_metric(
     source: str = "api",
     campaign_id: Optional[int] = None,
     chat_id: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    extra_data: Optional[Dict[str, Any]] = None
 ):
     """Записать метрику производительности"""
     try:
@@ -114,7 +114,7 @@ async def record_performance_metric(
             source=source,
             campaign_id=campaign_id,
             chat_id=chat_id,
-            metadata=metadata
+            extra_data=extra_data
         )
         
         return JSONResponse(content={

@@ -40,7 +40,7 @@ class StatisticsService:
     
     def record_performance_metric(self, metric_type: str, value: float, unit: str,
                                 source: str = "system", campaign_id: Optional[int] = None,
-                                chat_id: Optional[str] = None, metadata: Optional[Dict] = None):
+                                chat_id: Optional[str] = None, extra_data: Optional[Dict] = None):
         """Записать метрику производительности"""
         try:
             db = SessionLocal()
@@ -52,7 +52,7 @@ class StatisticsService:
                 source=source,
                 campaign_id=campaign_id,
                 chat_id=chat_id,
-                metadata=metadata or {}
+                extra_data=extra_data or {}
             )
             
             db.add(metric)
