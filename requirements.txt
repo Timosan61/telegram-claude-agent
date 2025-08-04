@@ -1,10 +1,10 @@
-# Full Project Requirements - Backend + Frontend
+# Streamlit Cloud Compatible Requirements - Python 3.13 Safe
 # Core Framework 
 python-dotenv==1.0.0
 
-# Database
+# Database - using psycopg (not binary) for Python 3.13 compatibility
 sqlalchemy==1.4.46
-psycopg2-binary==2.9.7
+psycopg==3.1.8
 
 # AI Integration  
 openai>=1.0.0,<2.0.0
