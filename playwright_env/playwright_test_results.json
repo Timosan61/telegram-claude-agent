@@ -1,0 +1,164 @@
+{
+  "timestamp": "2025-08-04T06:28:26.340625",
+  "tests": [
+    {
+      "test": "main_load",
+      "status": "passed",
+      "details": "Title: Telegram Claude Agent, Elements: 242"
+    },
+    {
+      "test": "company_settings",
+      "status": "failed",
+      "details": "404 errors found"
+    },
+    {
+      "test": "backend_health",
+      "status": "passed",
+      "details": "{'status': 'healthy', 'telegram_connected': True, 'database': 'connected'}"
+    },
+    {
+      "test": "company_api",
+      "status": "failed",
+      "details": "API returns 404: Not Found"
+    }
+  ],
+  "overall_status": "failed",
+  "errors": [
+    "404 errors found in Company Settings"
+  ],
+  "network_calls": [
+    {
+      "url": "http://localhost:8501/",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.370567",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.376149"
+    },
+    {
+      "url": "http://localhost:8501/static/media/SourceSansPro-Regular.0d69e5ff5e92ac64a0c9.woff2",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.389599",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.412457"
+    },
+    {
+      "url": "http://localhost:8501/static/media/SourceSerifPro-SemiBold.5c1d378dd5990ef334ca.woff2",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.389843",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.814386"
+    },
+    {
+      "url": "http://localhost:8501/static/media/SourceSansPro-Bold.118dea98980e20a81ced.woff2",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.390012",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.820455"
+    },
+    {
+      "url": "http://localhost:8501/static/js/main.d090770a.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.390167",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.846914"
+    },
+    {
+      "url": "http://localhost:8501/static/css/main.77d1c464.css",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:26.392032",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:26.794774"
+    },
+    {
+      "url": "http://localhost:8501/_stcore/health",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:27.911612",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:27.946638"
+    },
+    {
+      "url": "http://localhost:8501/_stcore/host-config",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:27.912048",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:27.965026"
+    },
+    {
+      "url": "http://localhost:8501/static/js/4319.fb3e0b77.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.553394",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.687413"
+    },
+    {
+      "url": "http://localhost:8501/static/js/9656.acfed299.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.553740",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.689360"
+    },
+    {
+      "url": "http://localhost:8501/static/js/8691.9d96e187.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.553999",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.691544"
+    },
+    {
+      "url": "http://localhost:8501/static/js/5379.acbf1a74.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.554230",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.692092"
+    },
+    {
+      "url": "http://localhost:8501/static/js/8492.943c6f0a.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.558715",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.697294"
+    },
+    {
+      "url": "http://localhost:8501/static/media/SourceSansPro-SemiBold.abed79cd0df1827e18cf.woff2",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.559007",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.684478"
+    },
+    {
+      "url": "http://localhost:8501/static/media/SourceCodePro-Regular.84b900b88d09398d86b0.woff2",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.559233",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:28.676940"
+    },
+    {
+      "url": "http://localhost:8501/static/js/7956.67c910c9.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.778935",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:29.227605"
+    },
+    {
+      "url": "http://localhost:8501/static/js/7175.719a4c74.chunk.js",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:28.779298",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:29.228283"
+    },
+    {
+      "url": "http://localhost:8000/health",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:38.347420",
+      "status": 200,
+      "response_time": "2025-08-04T06:28:38.355406"
+    },
+    {
+      "url": "http://localhost:8000/company/settings",
+      "method": "GET",
+      "timestamp": "2025-08-04T06:28:38.366984",
+      "status": 404,
+      "response_time": "2025-08-04T06:28:38.373385"
+    }
+  ]
+}
