@@ -1,9 +1,10 @@
-# Core Framework 
+# Core Framework - Updated for v1.2 deployment
 python-dotenv==1.0.0
 
-# Streamlit & Web Interface
+# Streamlit & Web Interface - Updated for modular architecture
 streamlit==1.28.1
 pandas>=2.2.0
+plotly>=5.17.0
 
 # Database
 sqlalchemy==1.4.46
