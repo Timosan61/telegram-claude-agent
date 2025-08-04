@@ -1,0 +1,21 @@
+# Backend Requirements - For server deployment
+# Core Framework 
+python-dotenv==1.0.0
+
+# Database
+sqlalchemy==1.4.46
+psycopg2-binary==2.9.7  # For backend server only
+
+# AI Integration  
+openai>=1.0.0,<2.0.0
+
+# HTTP & API
+requests==2.31.0
+fastapi==0.95.0
+uvicorn==0.20.0
+
+# Telegram Integration - App Platform compatible
+telethon==1.34.0
+
+# Basic utilities
+python-dateutil==2.8.2

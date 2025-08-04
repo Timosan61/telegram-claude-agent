@@ -13,5 +13,5 @@ requests==2.31.0
 # Basic utilities
 python-dateutil==2.8.2
 
-# Note: Backend dependencies moved to requirements_backend.txt
-# This file is optimized for Streamlit Cloud deployment
+# Note: PostgreSQL dependencies excluded for Streamlit Cloud
+# The app will use demo mode when backend is not available
