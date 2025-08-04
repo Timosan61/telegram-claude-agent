@@ -9,6 +9,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.models.base import get_db, create_tables
+# Импортируем все модели для регистрации в базе данных
+from database.models.campaign import Campaign
+from database.models.log import ActivityLog
+from database.models.company import CompanySettings
 from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
 from backend.api.chats import router as chats_router, set_telegram_agent
