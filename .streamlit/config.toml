@@ -8,7 +8,6 @@ enableXsrfProtection = false
 [browser]
 # Настройки браузера для улучшенного UX
 gatherUsageStats = false
-showErrorDetails = true
 
 [theme]
 # Тема интерфейса
@@ -17,9 +16,12 @@ backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F2F6"
 textColor = "#262730"
 
+[logger]
+# Настройки логирования (обновлено для Streamlit 1.28+)
+level = "info"
+
 [global]
 # Глобальные настройки приложения v1.2
 developmentMode = false
-logLevel = "info"
 
-# Force rebuild timestamp: 2025-08-04-02:55 - psycopg instead psycopg2-binary
+# Force rebuild timestamp: 2025-08-04-03:06 - Fixed deprecated config options
