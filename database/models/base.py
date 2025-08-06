@@ -12,11 +12,11 @@ def get_database_url():
     direct_db_url = os.getenv("DATABASE_URL")
     if direct_db_url:
         print(f"🔗 Используем прямой DATABASE_URL")
-        # Преобразуем строку подключения для совместимости с psycopg3
+        # Преобразуем строку подключения для совместимости с psycopg2
         if direct_db_url.startswith("postgresql://"):
-            # Заменяем postgresql:// на postgresql+psycopg:// для psycopg3
-            direct_db_url = direct_db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-            print(f"🔄 Преобразовано для psycopg3: postgresql+psycopg://...")
+            # Заменяем postgresql:// на postgresql+psycopg2:// для psycopg2-binary
+            direct_db_url = direct_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            print(f"🔄 Преобразовано для psycopg2: postgresql+psycopg2://...")
         return direct_db_url
     
     # Fallback к SQLite для локальной разработки

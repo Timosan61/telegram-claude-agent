@@ -11,9 +11,70 @@ from sqlalchemy.orm import Session
 from database.models.base import SessionLocal
 from database.models.campaign import Campaign
 from database.models.log import ActivityLog
-from utils.claude.client import ClaudeClient
-from utils.openai.client import OpenAIClient
-from utils.zep.memory import ZepMemoryManager
+
+# Встроенные AI клиенты (заменяют utils.*)
+class SimpleClaudeClient:
+    """Простой Claude клиент"""
+    def __init__(self):
+        try:
+            import anthropic
+            self.api_key = os.getenv("ANTHROPIC_API_KEY")
+            if self.api_key:
+                self.client = anthropic.Anthropic(api_key=self.api_key)
+                print("Claude клиент инициализирован")
+            else:
+                self.client = None
+        except ImportError:
+            self.client = None
+            
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        if not self.client:
+            return "Claude недоступен - проверьте ANTHROPIC_API_KEY и установку anthropic"
+        try:
+            import asyncio
+            response = await asyncio.to_thread(
+                self.client.messages.create,
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        except Exception as e:
+            return f"Ошибка Claude: {e}"
+
+class SimpleOpenAIClient:
+    """Простой OpenAI клиент"""
+    def __init__(self):
+        try:
+            import openai
+            self.api_key = os.getenv("OPENAI_API_KEY")
+            if self.api_key:
+                self.client = openai.OpenAI(api_key=self.api_key)
+                print("OpenAI клиент инициализирован")
+            else:
+                self.client = None
+        except ImportError:
+            self.client = None
+            
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        if not self.client:
+            return "OpenAI недоступен - проверьте OPENAI_API_KEY и установку openai"
+        try:
+            import asyncio
+            response = await asyncio.to_thread(
+                self.client.chat.completions.create,
+                model="gpt-4",
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Ошибка OpenAI: {e}"
+
+# Алиасы для совместимости
+ClaudeClient = SimpleClaudeClient
+OpenAIClient = SimpleOpenAIClient
+ZepMemoryManager = None  # Заглушка
 
 
 class TelegramAgent:
