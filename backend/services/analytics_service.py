@@ -78,8 +78,10 @@ class AnalyticsService:
         # Инициализация Telegram клиента
         if self.api_id and self.api_hash and self.phone:
             try:
-                self.client = TelegramClient("analytics_session", self.api_id, self.api_hash)
-                print("✅ Telegram клиент Analytics Service создан")
+                # Используем путь для персистентной сессии
+                session_path = os.path.join(os.getcwd(), "analytics_session.session")
+                self.client = TelegramClient(session_path, self.api_id, self.api_hash)
+                print(f"✅ Telegram клиент Analytics Service создан (сессия: {session_path})")
             except Exception as e:
                 print(f"❌ Ошибка создания Telegram клиента: {e}")
                 self.client = None
@@ -94,7 +96,7 @@ class AnalyticsService:
         self.is_connected = False
     
     async def initialize(self) -> bool:
-        """Инициализация соединения с Telegram с подробной диагностикой"""
+        """Инициализация соединения с Telegram с проверкой существующей авторизации"""
         if not self.client:
             print("❌ Analytics Service: Нет Telegram клиента для инициализации")
             return False
@@ -102,46 +104,40 @@ class AnalyticsService:
         print("🔄 Попытка подключения Analytics Service к Telegram...")
         
         try:
-            # Подробная диагностика подключения
-            print(f"   Подключение с параметрами:")
-            print(f"   - API_ID: {self.api_id}")
-            print(f"   - API_HASH: {'*' * len(self.api_hash) if self.api_hash else 'None'}")
-            print(f"   - Phone: {self.phone}")
+            # Проверяем есть ли файл сессии
+            session_path = os.path.join(os.getcwd(), "analytics_session.session")
+            session_exists = os.path.exists(session_path)
+            print(f"📁 Файл сессии: {'✅ Существует' if session_exists else '❌ Отсутствует'}")
             
-            # Попробуем подключиться
+            # Подключаемся к Telegram
             await self.client.connect()
             print("✅ Соединение с Telegram установлено")
             
-            # Проверяем авторизацию
+            # Проверяем авторизацию БЕЗ попытки авторизации
             is_authorized = await self.client.is_user_authorized()
             print(f"🔐 Статус авторизации: {'✅ Авторизован' if is_authorized else '❌ Требуется авторизация'}")
             
-            if not is_authorized:
-                print("🔑 Попытка авторизации через номер телефона...")
-                try:
-                    await self.client.start(phone=self.phone)
-                    print("✅ Авторизация успешна")
-                    self.is_connected = True
-                    return True
-                except Exception as auth_error:
-                    print(f"❌ Ошибка авторизации: {auth_error}")
-                    print("💡 Возможные причины:")
-                    print("   - Неверный номер телефона")
-                    print("   - Требуется интерактивная авторизация (код из SMS)")
-                    print("   - Аккаунт заблокирован или ограничен")
-                    print("   - Неверные API credentials")
-                    return False
-            else:
+            if is_authorized:
                 # Уже авторизован, получаем информацию о пользователе
                 try:
                     me = await self.client.get_me()
-                    print(f"✅ Подключен как: {me.first_name} {me.last_name or ''} ({me.phone})")
+                    print(f"✅ Analytics Service подключен как: {me.first_name} {me.last_name or ''} ({me.phone})")
                     self.is_connected = True
                     return True
                 except Exception as me_error:
                     print(f"⚠️ Подключение установлено, но ошибка получения профиля: {me_error}")
                     self.is_connected = True
                     return True
+            else:
+                # НЕ авторизован - НЕ пытаемся авторизоваться на продакшн
+                print("❌ Analytics Service НЕ авторизован")
+                print("💡 Для авторизации выполните локально:")
+                print("   1. Установите переменные окружения")
+                print("   2. Запустите: python -c 'from backend.services.analytics_service import analytics_service; import asyncio; asyncio.run(analytics_service.authorize())'")
+                print("   3. Введите код из SMS")
+                print("   4. Скопируйте analytics_session.session в продакшн")
+                self.is_connected = False
+                return False
                     
         except Exception as e:
             error_msg = str(e)
@@ -153,7 +149,7 @@ class AnalyticsService:
             elif "PHONE_NUMBER_INVALID" in error_msg:
                 print("💡 Решение: Неверный формат номера телефона. Используйте формат +1234567890")
             elif "AUTH_KEY_UNREGISTERED" in error_msg:
-                print("💡 Решение: Сессия устарела. Требуется повторная авторизация")
+                print("💡 Решение: Сессия устарела. Требуется повторная авторизация (см. инструкции выше)")
             elif "FLOOD_WAIT" in error_msg:
                 print("💡 Решение: Превышен лимит запросов. Подождите несколько минут")
             elif "Connection" in error_msg or "timeout" in error_msg.lower():
@@ -161,6 +157,34 @@ class AnalyticsService:
             else:
                 print("💡 Проверьте переменные окружения и доступность Telegram API")
             
+            self.is_connected = False
+            return False
+    
+    async def authorize(self) -> bool:
+        """Интерактивная авторизация (только для локального использования)"""
+        if not self.client:
+            print("❌ Analytics Service: Нет Telegram клиента для авторизации")
+            return False
+        
+        print("🔑 Начинаем интерактивную авторизацию...")
+        
+        try:
+            await self.client.connect()
+            
+            is_authorized = await self.client.is_user_authorized()
+            if is_authorized:
+                print("✅ Уже авторизован!")
+                return True
+            
+            # Интерактивная авторизация ТОЛЬКО для локального запуска
+            await self.client.start(phone=self.phone)
+            print("✅ Авторизация успешна! Файл сессии сохранен.")
+            
+            self.is_connected = True
+            return True
+            
+        except Exception as e:
+            print(f"❌ Ошибка авторизации: {e}")
             return False
     
     async def disconnect(self):

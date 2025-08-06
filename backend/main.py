@@ -21,7 +21,7 @@ from backend.api.campaigns import set_telegram_agent as set_campaigns_agent
 from backend.api.company import router as company_router
 from backend.api.analytics import router as analytics_router
 from backend.services.analytics_service import analytics_service
-# from backend.api.statistics import router as statistics_router  # Temporarily disabled due to missing services
+# Statistics router removed during cleanup
 from backend.core.telegram_agent import TelegramAgent
 
 # Загрузка переменных окружения
@@ -128,7 +128,7 @@ app.include_router(logs_router, prefix="/logs", tags=["logs"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
 app.include_router(company_router, prefix="/company", tags=["company"])
 app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
-# app.include_router(statistics_router, prefix="/statistics", tags=["statistics"])  # Temporarily disabled
+# Statistics router removed during cleanup
 
 
 if __name__ == "__main__":

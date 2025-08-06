@@ -7,7 +7,7 @@ import time
 
 # Импорт модульных страниц
 from frontend.pages.analytics import show_analytics_page, show_demo_analytics_page
-from frontend.pages.statistics import show_statistics_page, show_demo_statistics_page
+# Statistics module removed during cleanup
 
 # Конфигурация страницы уже выполнена в streamlit_app.py
 
@@ -128,9 +128,9 @@ def main():
             show_demo_chats_page()
     elif page == "📊 Статистика":
         if server_status:
-            show_statistics_page()
+            st.info("📊 Статистика временно недоступна")
         else:
-            show_demo_statistics_page()
+            st.info("📊 Демо статистика временно недоступна")
     elif page == "📈 Аналитика чатов":
         if server_status:
             show_analytics_page()

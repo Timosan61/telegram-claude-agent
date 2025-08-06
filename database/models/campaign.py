@@ -35,7 +35,7 @@ class Campaign(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Связи
-    statistics = relationship("CampaignStatistics", back_populates="campaign")
+    # Statistics relationship removed during cleanup
     
     def __repr__(self):
         return f"<Campaign(id={self.id}, name='{self.name}', active={self.active})>"

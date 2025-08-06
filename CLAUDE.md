@@ -322,20 +322,33 @@ python main.py
 #### 2. Analytics Service не работает *(NEW)*
 **Симптомы**: 
 - `Analytics Service не инициализирован`
+- `Analytics Service НЕ авторизован`
 - `The key is not registered in the system`
-- `TypeError: int() argument must be a string...`
+- Запрос кода авторизации при каждом деплое
 
-**Решение**:
+**Решение по авторизации**:
 ```bash
-# Проверить переменные окружения
-echo $TELEGRAM_API_ID
-echo $TELEGRAM_API_HASH
-echo $TELEGRAM_PHONE
+# 1. Локальная авторизация (ОДНОРАЗОВО)
+cd telegram_claude_agent
+export TELEGRAM_API_ID=your_api_id
+export TELEGRAM_API_HASH=your_api_hash
+export TELEGRAM_PHONE=your_phone
 
-# В production (DigitalOcean/Heroku) добавить переменные:
+python authorize_telegram.py
+# Введите код из SMS
+
+# 2. Загрузите файл analytics_session.session на продакшн
+# Для DigitalOcean App Platform - через git commit
+git add analytics_session.session
+git commit -m "🔐 Добавлен файл сессии Telegram"
+git push
+
+# 3. В production добавить только переменные окружения:
 TELEGRAM_API_ID=your_api_id
 TELEGRAM_API_HASH=your_api_hash  
 TELEGRAM_PHONE=your_phone
+
+# Больше НЕ будет запросов кода авторизации!
 ```
 
 #### 3. Изменения в инструкциях не применяются
