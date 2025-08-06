@@ -1,0 +1,68 @@
+name: Deploy Backend to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'database/**'
+      - 'requirements.txt'
+      - 'requirements_backend.txt'
+      - 'Procfile'
+      - 'runtime.txt'
+      - '.github/workflows/deploy-digitalocean.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements_backend.txt
+        
+    - name: Run basic tests
+      run: |
+        python -c "import backend.main; print('✅ Backend imports successful')"
+        python -c "from database.models.base import create_tables; print('✅ Database models import successful')"
+        
+    - name: Deploy to DigitalOcean App Platform
+      uses: digitalocean/app_action@v1.1.5
+      with:
+        app_name: answerbot-magph
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        images: '[
+          {
+            "name": "api",
+            "source_dir": "/",
+            "github": {
+              "repo": "Timosan61/telegram-claude-agent",
+              "branch": "main"
+            },
+            "run_command": "python -m backend.main_app_platform",
+            "environment_slug": "python",
+            "instance_count": 1,
+            "instance_size_slug": "basic-xxs"
+          }
+        ]'
+        
+    - name: Wait for deployment
+      run: |
+        echo "⏳ Ожидание завершения деплоя..."
+        sleep 60
+        
+    - name: Verify deployment
+      run: |
+        echo "🔍 Проверка деплоя..."
+        curl -f https://answerbot-magph.ondigitalocean.app/health || echo "❌ Health check failed"
+        curl -f https://answerbot-magph.ondigitalocean.app/company/settings || echo "❌ Company settings check failed"
+        echo "✅ Деплой проверен!"

@@ -15,7 +15,7 @@ def show_analytics_page():
     st.markdown("Анализ сообщений, участников и активности в Telegram-чатах")
     
     # Проверяем статус сервиса аналитики
-    analytics_status = api_client.make_request("/analytics/health")
+    analytics_status = api_client.make_request("/health")
     
     if not analytics_status:
         st.error("❌ Сервис аналитики недоступен")
@@ -23,7 +23,8 @@ def show_analytics_page():
         return
     
     # Инициализация сервиса если необходимо
-    if not analytics_status.get("telegram_connected"):
+    telegram_status = analytics_status.get("telegram_status", {}) if analytics_status else {}
+    if not telegram_status.get("connected", False):
         st.warning("⚠️ Сервис аналитики не подключен к Telegram")
         if st.button("🔄 Инициализировать сервис аналитики"):
             with st.spinner("Подключение к Telegram..."):
@@ -52,8 +53,8 @@ def show_new_analysis_form():
     """Форма для создания нового анализа"""
     st.subheader("🔍 Создание нового анализа")
     
-    # Получаем список доступных чатов
-    chats_response = api_client.make_request("/analytics/chats/available")
+    # Получаем список доступных чатов  
+    chats_response = api_client.make_request("/chats/available")
     available_chats = chats_response.get("chats", []) if chats_response else []
     
     if not available_chats:
@@ -180,7 +181,7 @@ def show_new_analysis_form():
             
             # Запуск анализа
             with st.spinner("Запускаем анализ..."):
-                response = api_client.make_request("/analytics/analyze", method="POST", data=analysis_request)
+                response = api_client.make_request("/logs/analyze", method="POST", data=analysis_request)
                 
                 if response:
                     analysis_id = response["analysis_id"]
@@ -203,7 +204,7 @@ def show_analysis_results():
     st.subheader("📊 Результаты анализа")
     
     # Получаем список всех анализов
-    analyses_response = api_client.make_request("/analytics/analyze")
+    analyses_response = api_client.make_request("/logs/stats/overview")
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:
@@ -446,7 +447,7 @@ def show_analysis_history():
     st.subheader("📋 История анализов")
     
     # Получаем список всех анализов
-    analyses_response = api_client.make_request("/analytics/analyze")
+    analyses_response = api_client.make_request("/logs/stats/overview")
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:

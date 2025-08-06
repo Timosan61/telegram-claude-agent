@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-08-04T06:34:49.237365",
+  "tests": [
+    {
+      "test": "main_load",
+      "status": "passed",
+      "details": "Title: Telegram Claude Agent, Elements: 237"
+    },
+    {
+      "test": "company_settings_ui",
+      "status": "passed",
+      "details": "No 404 errors in UI"
+    },
+    {
+      "test": "company_api",
+      "status": "passed",
+      "details": "API Status: 200"
+    },
+    {
+      "test": "backend_health",
+      "status": "passed",
+      "details": "{'status': 'healthy', 'telegram_connected': True, 'database': 'connected'}"
+    }
+  ],
+  "overall_status": "passed",
+  "errors": []
+}
