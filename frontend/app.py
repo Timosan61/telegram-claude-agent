@@ -200,14 +200,15 @@ def show_campaigns_page():
                     st.write(f"**Контекст сообщений:** {campaign['context_messages_count']}")
                     
                     # Системная инструкция
-                    with st.expander("Системная инструкция"):
-                        st.text_area(
-                            "Инструкция:",
-                            value=campaign['system_instruction'],
-                            height=100,
-                            disabled=True,
-                            key=f"instruction_{campaign['id']}"
-                        )
+                    st.write("**Системная инструкция:**")
+                    st.text_area(
+                        "Инструкция:",
+                        value=campaign['system_instruction'],
+                        height=100,
+                        disabled=True,
+                        key=f"instruction_{campaign['id']}",
+                        label_visibility="collapsed"
+                    )
                 
                 with col2:
                     # Статус активности
