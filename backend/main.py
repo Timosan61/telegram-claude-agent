@@ -9,6 +9,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.models.base import get_db, create_tables
+from database.seed_data import initialize_demo_data
 # Импортируем все модели для регистрации в базе данных
 from database.models.campaign import Campaign
 from database.models.log import ActivityLog
@@ -53,6 +54,15 @@ async def startup_event():
     """Инициализация при запуске приложения"""
     # Создание таблиц БД
     create_tables()
+    print("✅ База данных инициализирована")
+    
+    # Инициализация демонстрационных данных
+    try:
+        initialize_demo_data()
+        print("✅ Демонстрационные данные инициализированы")
+    except Exception as e:
+        print(f"⚠️ Ошибка инициализации демо данных: {e}")
+        # Не критичная ошибка, продолжаем работу
     
     # Инициализация Telegram агента
     global telegram_agent
