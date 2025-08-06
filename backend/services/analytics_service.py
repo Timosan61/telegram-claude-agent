@@ -46,16 +46,27 @@ class AnalyticsService:
     """Сервис для аналитики Telegram чатов"""
     
     def __init__(self):
-        self.api_id = int(os.getenv("TELEGRAM_API_ID"))
+        # Безопасная инициализация с проверкой переменных окружения
+        api_id_str = os.getenv("TELEGRAM_API_ID")
+        self.api_id = int(api_id_str) if api_id_str else None
         self.api_hash = os.getenv("TELEGRAM_API_HASH")
         self.phone = os.getenv("TELEGRAM_PHONE")
         
-        # Инициализация Telegram клиента
-        self.client = TelegramClient("analytics_session", self.api_id, self.api_hash)
+        # Инициализация Telegram клиента только если есть все необходимые данные
+        if self.api_id and self.api_hash:
+            self.client = TelegramClient("analytics_session", self.api_id, self.api_hash)
+        else:
+            self.client = None
+            print("⚠️ Analytics Service: Telegram API credentials не настроены")
+        
         self.is_connected = False
     
     async def initialize(self) -> bool:
         """Инициализация соединения с Telegram"""
+        if not self.client:
+            print("⚠️ Analytics Service: Нет Telegram клиента для инициализации")
+            return False
+        
         try:
             await self.client.start(phone=self.phone)
             self.is_connected = True
@@ -67,15 +78,21 @@ class AnalyticsService:
     
     async def disconnect(self):
         """Отключение от Telegram"""
-        if self.client.is_connected():
+        if self.client and self.client.is_connected():
             await self.client.disconnect()
             self.is_connected = False
             print("👋 Analytics Service отключен от Telegram")
     
     async def get_available_chats(self) -> List[Dict[str, Any]]:
         """Получить список доступных чатов для анализа"""
+        if not self.client:
+            return []
+        
         if not self.is_connected:
             await self.initialize()
+        
+        if not self.is_connected:
+            return []
         
         try:
             chats = []
@@ -108,8 +125,14 @@ class AnalyticsService:
         Returns:
             Словарь с информацией о канале или None если не найден
         """
+        if not self.client:
+            return None
+        
         if not self.is_connected:
             await self.initialize()
+            
+        if not self.is_connected:
+            return None
         
         try:
             # Нормализуем имя канала
@@ -166,8 +189,31 @@ class AnalyticsService:
     
     async def analyze_chat(self, config: AnalyticsConfig) -> ChatAnalytics:
         """Выполнить анализ чата"""
+        if not self.client:
+            # Возвращаем пустой результат с ошибкой
+            return ChatAnalytics(
+                chat_info={"error": "Analytics Service не инициализирован - отсутствуют Telegram API credentials"},
+                message_stats={},
+                participant_stats={},
+                time_analysis={},
+                keyword_analysis={},
+                media_analysis={},
+                export_data=[]
+            )
+        
         if not self.is_connected:
             await self.initialize()
+            
+        if not self.is_connected:
+            return ChatAnalytics(
+                chat_info={"error": "Не удалось подключиться к Telegram API"},
+                message_stats={},
+                participant_stats={},
+                time_analysis={},
+                keyword_analysis={},
+                media_analysis={},
+                export_data=[]
+            )
         
         try:
             # Получаем информацию о чате
