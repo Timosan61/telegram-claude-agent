@@ -68,7 +68,7 @@ def show_new_analysis_form():
                 if channel_name.strip():
                     # Проверяем доступность канала
                     with st.spinner("Проверяем канал..."):
-                        channel_info = api_client.make_request(f"/analytics/channel-info/{channel_name.strip()}")
+                        channel_info = api_client.get_channel_info(channel_name.strip())
                         
                         if channel_info and channel_info.get("accessible"):
                             st.success("✅ Канал найден и доступен")
@@ -199,11 +199,7 @@ def show_new_analysis_form():
             
             # Запускаем прямой анализ канала
             with st.spinner("Запускаем анализ канала..."):
-                response = api_client.make_request(
-                    "/analytics/analyze-channel", 
-                    method="POST", 
-                    json=analysis_request
-                )
+                response = api_client.start_channel_analysis(analysis_request)
                 
                 if response:
                     st.success("✅ Анализ запущен!")
@@ -220,7 +216,7 @@ def show_analysis_results():
     st.subheader("📊 Результаты анализа")
     
     # Получаем список всех анализов из analytics API
-    analyses_response = api_client.make_request("/analytics/analyze")
+    analyses_response = api_client.list_analyses()
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:
@@ -245,7 +241,7 @@ def show_analysis_results():
     analysis_id = analysis_options[selected_analysis_display]
     
     # Проверяем статус анализа
-    status_response = api_client.make_request(f"/analytics/analyze/{analysis_id}/status")
+    status_response = api_client.get_analysis_status(analysis_id)
     
     if status_response:
         if status_response['status'] == 'in_progress':
@@ -258,7 +254,7 @@ def show_analysis_results():
             return
     
     # Получаем детальные результаты
-    results_response = api_client.make_request(f"/analytics/analyze/{analysis_id}/results")
+    results_response = api_client.get_analysis_results(analysis_id)
     
     if not results_response:
         st.error("❌ Не удалось загрузить результаты анализа")
@@ -451,7 +447,7 @@ def display_analysis_results(analysis_id: str, results: dict):
     
     with col3:
         if st.button("🗑️ Удалить анализ", key=f"delete_{analysis_id}"):
-            delete_response = api_client.make_request(f"/analytics/analyze/{analysis_id}", method="DELETE")
+            delete_response = api_client.delete_analysis(analysis_id)
             if delete_response:
                 st.success("✅ Анализ удален")
                 st.rerun()
@@ -475,7 +471,7 @@ def show_analysis_history():
     st.subheader("📋 История анализов")
     
     # Получаем список всех анализов из analytics API
-    analyses_response = api_client.make_request("/analytics/analyze")
+    analyses_response = api_client.list_analyses()
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:
@@ -504,7 +500,7 @@ def show_analysis_history():
                 # Удаляем все анализы
                 deleted_count = 0
                 for analysis in analyses:
-                    response = api_client.make_request(f"/analytics/analyze/{analysis['analysis_id']}", method="DELETE")
+                    response = api_client.delete_analysis(analysis['analysis_id'])
                     if response:
                         deleted_count += 1
                 

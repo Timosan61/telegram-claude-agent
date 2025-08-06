@@ -153,6 +153,35 @@ class APIClient:
     def update_default_settings(self, settings_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Обновить настройки по умолчанию"""
         return self.make_request("/company/default-settings", method="PUT", data=settings_data)
+    
+    # Методы для аналитики
+    def check_analytics_health(self) -> Optional[Dict[str, Any]]:
+        """Проверить статус сервиса аналитики"""
+        return self.make_request("/analytics/health")
+    
+    def get_channel_info(self, channel_name: str) -> Optional[Dict[str, Any]]:
+        """Получить информацию о канале"""
+        return self.make_request(f"/analytics/channel-info/{channel_name}")
+    
+    def start_channel_analysis(self, analysis_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Запустить прямой анализ канала"""
+        return self.make_request("/analytics/analyze-channel", method="POST", data=analysis_data)
+    
+    def get_analysis_status(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Получить статус анализа"""
+        return self.make_request(f"/analytics/analyze/{analysis_id}/status")
+    
+    def get_analysis_results(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Получить результаты анализа"""
+        return self.make_request(f"/analytics/analyze/{analysis_id}/results")
+    
+    def list_analyses(self) -> Optional[Dict[str, Any]]:
+        """Получить список всех анализов"""
+        return self.make_request("/analytics/analyze")
+    
+    def delete_analysis(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Удалить анализ"""
+        return self.make_request(f"/analytics/analyze/{analysis_id}", method="DELETE")
 
 
 # Глобальный экземпляр для использования в приложении
