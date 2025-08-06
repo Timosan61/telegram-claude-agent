@@ -23,10 +23,18 @@ def create_demo_company():
             print("✅ Демо компания 'ТИМ' уже существует")
             return existing_company
         
-        # Создаем демо компанию
+        # Создаем демо компанию с реальными данными
         demo_company = CompanySettings(
             name="ТИМ",
-            telegram_accounts=["+1234567890"],
+            telegram_accounts=[
+                {
+                    "name": "Основной аккаунт",
+                    "phone": "+79885569348",
+                    "is_active": True,
+                    "campaigns_count": 1,
+                    "last_used": "2024-01-15T10:30:00"
+                }
+            ],
             ai_providers={
                 "claude": {
                     "enabled": True,
@@ -75,13 +83,13 @@ def create_demo_campaigns():
             print("✅ Демо кампания уже существует")
             return existing_campaign
         
-        # Создаем демо кампанию
+        # Создаем демо кампанию с реальным каналом
         demo_campaign = Campaign(
             name="Демо кампания - Поддержка",
             active=True,
-            telegram_chats=["@demo_channel", "2532661483"],  # Включаем тестовую группу
+            telegram_chats=["@eslitotoeto", "2532661483"],  # Реальный канал + тестовая группа
             keywords=["помощь", "поддержка", "вопрос", "проблема", "help"],
-            telegram_account="+1234567890",
+            telegram_account="Основной аккаунт",
             ai_provider="claude",
             system_instruction="""Ты - дружелюбный помощник службы поддержки компании ТИМ.
 
