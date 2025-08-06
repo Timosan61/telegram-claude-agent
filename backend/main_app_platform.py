@@ -19,6 +19,8 @@ from backend.api.campaigns import router as campaigns_router
 from backend.api.logs import router as logs_router
 from backend.api.chats import router as chats_router, set_telegram_agent
 from backend.api.company import router as company_router
+from backend.api.analytics import router as analytics_router
+from backend.services.analytics_service import analytics_service
 from backend.core.telegram_agent_app_platform import get_telegram_agent, stop_telegram_agent
 
 # Загрузка переменных окружения
@@ -67,6 +69,13 @@ async def startup_event():
         else:
             print("⚠️ Telegram Agent запущен, но не авторизован")
             print("💡 Проверьте переменную TELEGRAM_SESSION_STRING")
+        
+        # Инициализируем analytics service
+        try:
+            await analytics_service.initialize()
+            print("✅ Analytics Service инициализирован")
+        except Exception as e:
+            print(f"⚠️ Analytics Service не удалось инициализировать: {e}")
     except Exception as e:
         print(f"❌ Ошибка инициализации Telegram Agent: {e}")
         telegram_agent = None
@@ -79,6 +88,13 @@ async def shutdown_event():
     if telegram_agent:
         await stop_telegram_agent()
         print("✅ Telegram Agent остановлен")
+    
+    # Отключаем analytics service
+    try:
+        await analytics_service.disconnect()
+        print("✅ Analytics Service отключен")
+    except Exception as e:
+        print(f"⚠️ Ошибка отключения Analytics Service: {e}")
 
 @app.get("/")
 async def root():
@@ -241,6 +257,7 @@ app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(logs_router, prefix="/logs", tags=["logs"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
 app.include_router(company_router, prefix="/company", tags=["company"])
+app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 
 if __name__ == "__main__":
     import uvicorn

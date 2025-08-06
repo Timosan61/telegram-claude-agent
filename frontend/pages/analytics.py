@@ -68,7 +68,7 @@ def show_new_analysis_form():
                 if channel_name.strip():
                     # Проверяем доступность канала
                     with st.spinner("Проверяем канал..."):
-                        channel_info = api_client.make_request(f"/channel-info/{channel_name.strip()}")
+                        channel_info = api_client.make_request(f"/analytics/channel-info/{channel_name.strip()}")
                         
                         if channel_info and channel_info.get("accessible"):
                             st.success("✅ Канал найден и доступен")
@@ -200,7 +200,7 @@ def show_new_analysis_form():
             # Запускаем прямой анализ канала
             with st.spinner("Запускаем анализ канала..."):
                 response = api_client.make_request(
-                    "/analyze-channel", 
+                    "/analytics/analyze-channel", 
                     method="POST", 
                     json=analysis_request
                 )

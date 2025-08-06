@@ -18,7 +18,8 @@ from backend.api.logs import router as logs_router
 from backend.api.chats import router as chats_router, set_telegram_agent
 from backend.api.campaigns import set_telegram_agent as set_campaigns_agent
 from backend.api.company import router as company_router
-# from backend.api.analytics import router as analytics_router  # Temporarily disabled due to missing services
+from backend.api.analytics import router as analytics_router
+from backend.services.analytics_service import analytics_service
 # from backend.api.statistics import router as statistics_router  # Temporarily disabled due to missing services
 from backend.core.telegram_agent import TelegramAgent
 
@@ -62,6 +63,13 @@ async def startup_event():
     set_telegram_agent(telegram_agent)
     set_campaigns_agent(telegram_agent)
     
+    # Инициализируем analytics service
+    try:
+        await analytics_service.initialize()
+        print("✅ Analytics Service инициализирован")
+    except Exception as e:
+        print(f"⚠️ Analytics Service не удалось инициализировать: {e}")
+    
     print("🚀 Telegram Claude Agent запущен!")
 
 
@@ -71,6 +79,14 @@ async def shutdown_event():
     global telegram_agent
     if telegram_agent:
         await telegram_agent.disconnect()
+    
+    # Отключаем analytics service
+    try:
+        await analytics_service.disconnect()
+        print("✅ Analytics Service отключен")
+    except Exception as e:
+        print(f"⚠️ Ошибка отключения Analytics Service: {e}")
+    
     print("👋 Telegram Claude Agent остановлен!")
 
 
@@ -101,7 +117,7 @@ app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(logs_router, prefix="/logs", tags=["logs"])
 app.include_router(chats_router, prefix="/chats", tags=["chats"])
 app.include_router(company_router, prefix="/company", tags=["company"])
-# app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])  # Temporarily disabled
+app.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 # app.include_router(statistics_router, prefix="/statistics", tags=["statistics"])  # Temporarily disabled
 
 
