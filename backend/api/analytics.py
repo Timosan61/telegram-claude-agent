@@ -43,12 +43,64 @@ class DirectChannelAnalysisRequest(BaseModel):
 
 @router.get("/health")
 async def analytics_health():
-    """Проверка статуса сервиса аналитики"""
-    return {
-        "status": "healthy",
-        "telegram_connected": analytics_service.is_connected,
-        "service": "analytics"
+    """Проверка состояния Analytics Service с подробной диагностикой"""
+    
+    # Базовая информация о сервисе
+    service_status = {
+        "service": "Analytics Service",
+        "timestamp": datetime.now().isoformat(),
+        "client_initialized": analytics_service.client is not None,
+        "is_connected": analytics_service.is_connected,
+        "credentials_check": {
+            "api_id": analytics_service.api_id is not None,
+            "api_hash": analytics_service.api_hash is not None,
+            "phone": analytics_service.phone is not None
+        }
     }
+    
+    # Если клиент не инициализирован, возвращаем базовую информацию
+    if not analytics_service.client:
+        service_status["status"] = "❌ Отключен"
+        service_status["message"] = "Отсутствуют Telegram API credentials"
+        return service_status
+    
+    # Проверяем подключение
+    try:
+        if not analytics_service.is_connected:
+            # Пытаемся инициализировать подключение
+            connection_result = await analytics_service.initialize()
+            service_status["connection_attempt"] = connection_result
+        
+        if analytics_service.is_connected:
+            # Получаем дополнительную информацию о подключении
+            try:
+                if analytics_service.client.is_user_authorized():
+                    me = await analytics_service.client.get_me()
+                    service_status["user_info"] = {
+                        "first_name": me.first_name,
+                        "last_name": me.last_name,
+                        "phone": me.phone,
+                        "username": getattr(me, 'username', None),
+                        "user_id": me.id
+                    }
+                    service_status["status"] = "✅ Подключен и авторизован"
+                    service_status["message"] = f"Подключен как {me.first_name} {me.last_name or ''}"
+                else:
+                    service_status["status"] = "⚠️ Подключен, но не авторизован"
+                    service_status["message"] = "Требуется авторизация"
+            except Exception as info_error:
+                service_status["status"] = "⚠️ Частично работает"
+                service_status["message"] = f"Подключен, но ошибка получения info: {info_error}"
+        else:
+            service_status["status"] = "❌ Не подключен"
+            service_status["message"] = "Не удалось подключиться к Telegram API"
+            
+    except Exception as e:
+        service_status["status"] = "❌ Ошибка"
+        service_status["message"] = f"Ошибка проверки подключения: {e}"
+        service_status["error_details"] = str(e)
+    
+    return service_status
 
 
 @router.get("/chats/available")

@@ -46,34 +46,121 @@ class AnalyticsService:
     """Сервис для аналитики Telegram чатов"""
     
     def __init__(self):
-        # Безопасная инициализация с проверкой переменных окружения
+        # Подробная диагностика переменных окружения
         api_id_str = os.getenv("TELEGRAM_API_ID")
-        self.api_id = int(api_id_str) if api_id_str else None
         self.api_hash = os.getenv("TELEGRAM_API_HASH")
         self.phone = os.getenv("TELEGRAM_PHONE")
         
-        # Инициализация Telegram клиента только если есть все необходимые данные
-        if self.api_id and self.api_hash:
-            self.client = TelegramClient("analytics_session", self.api_id, self.api_hash)
+        print(f"🔍 Analytics Service диагностика:")
+        print(f"   TELEGRAM_API_ID: {'✅ Установлен' if api_id_str else '❌ Отсутствует'}")
+        print(f"   TELEGRAM_API_HASH: {'✅ Установлен' if self.api_hash else '❌ Отсутствует'}")
+        print(f"   TELEGRAM_PHONE: {'✅ Установлен' if self.phone else '❌ Отсутствует'}")
+        
+        # Проверка корректности API_ID
+        self.api_id = None
+        if api_id_str:
+            try:
+                self.api_id = int(api_id_str)
+                if self.api_id <= 0:
+                    print(f"❌ TELEGRAM_API_ID должен быть положительным числом, получен: {self.api_id}")
+                    self.api_id = None
+                else:
+                    print(f"   API_ID корректен: {self.api_id}")
+            except ValueError:
+                print(f"❌ TELEGRAM_API_ID должен быть числом, получен: '{api_id_str}'")
+        
+        # Проверка формата телефона
+        if self.phone and not self.phone.startswith('+'):
+            print(f"⚠️ TELEGRAM_PHONE должен начинаться с '+', получен: '{self.phone}'")
+            self.phone = f"+{self.phone}"
+            print(f"   Исправлено на: '{self.phone}'")
+        
+        # Инициализация Telegram клиента
+        if self.api_id and self.api_hash and self.phone:
+            try:
+                self.client = TelegramClient("analytics_session", self.api_id, self.api_hash)
+                print("✅ Telegram клиент Analytics Service создан")
+            except Exception as e:
+                print(f"❌ Ошибка создания Telegram клиента: {e}")
+                self.client = None
         else:
             self.client = None
-            print("⚠️ Analytics Service: Telegram API credentials не настроены")
+            missing = []
+            if not self.api_id: missing.append("TELEGRAM_API_ID")
+            if not self.api_hash: missing.append("TELEGRAM_API_HASH") 
+            if not self.phone: missing.append("TELEGRAM_PHONE")
+            print(f"❌ Analytics Service отключен - отсутствуют переменные: {', '.join(missing)}")
         
         self.is_connected = False
     
     async def initialize(self) -> bool:
-        """Инициализация соединения с Telegram"""
+        """Инициализация соединения с Telegram с подробной диагностикой"""
         if not self.client:
-            print("⚠️ Analytics Service: Нет Telegram клиента для инициализации")
+            print("❌ Analytics Service: Нет Telegram клиента для инициализации")
             return False
         
+        print("🔄 Попытка подключения Analytics Service к Telegram...")
+        
         try:
-            await self.client.start(phone=self.phone)
-            self.is_connected = True
-            print("✅ Analytics Service подключен к Telegram")
-            return True
+            # Подробная диагностика подключения
+            print(f"   Подключение с параметрами:")
+            print(f"   - API_ID: {self.api_id}")
+            print(f"   - API_HASH: {'*' * len(self.api_hash) if self.api_hash else 'None'}")
+            print(f"   - Phone: {self.phone}")
+            
+            # Попробуем подключиться
+            await self.client.connect()
+            print("✅ Соединение с Telegram установлено")
+            
+            # Проверяем авторизацию
+            is_authorized = await self.client.is_user_authorized()
+            print(f"🔐 Статус авторизации: {'✅ Авторизован' if is_authorized else '❌ Требуется авторизация'}")
+            
+            if not is_authorized:
+                print("🔑 Попытка авторизации через номер телефона...")
+                try:
+                    await self.client.start(phone=self.phone)
+                    print("✅ Авторизация успешна")
+                    self.is_connected = True
+                    return True
+                except Exception as auth_error:
+                    print(f"❌ Ошибка авторизации: {auth_error}")
+                    print("💡 Возможные причины:")
+                    print("   - Неверный номер телефона")
+                    print("   - Требуется интерактивная авторизация (код из SMS)")
+                    print("   - Аккаунт заблокирован или ограничен")
+                    print("   - Неверные API credentials")
+                    return False
+            else:
+                # Уже авторизован, получаем информацию о пользователе
+                try:
+                    me = await self.client.get_me()
+                    print(f"✅ Подключен как: {me.first_name} {me.last_name or ''} ({me.phone})")
+                    self.is_connected = True
+                    return True
+                except Exception as me_error:
+                    print(f"⚠️ Подключение установлено, но ошибка получения профиля: {me_error}")
+                    self.is_connected = True
+                    return True
+                    
         except Exception as e:
-            print(f"❌ Ошибка подключения Analytics Service к Telegram: {e}")
+            error_msg = str(e)
+            print(f"❌ Ошибка подключения Analytics Service к Telegram: {error_msg}")
+            
+            # Диагностика конкретных ошибок
+            if "The key is not registered in the system" in error_msg:
+                print("💡 Решение: Неверные API_ID/API_HASH. Получите корректные на https://my.telegram.org/apps")
+            elif "PHONE_NUMBER_INVALID" in error_msg:
+                print("💡 Решение: Неверный формат номера телефона. Используйте формат +1234567890")
+            elif "AUTH_KEY_UNREGISTERED" in error_msg:
+                print("💡 Решение: Сессия устарела. Требуется повторная авторизация")
+            elif "FLOOD_WAIT" in error_msg:
+                print("💡 Решение: Превышен лимит запросов. Подождите несколько минут")
+            elif "Connection" in error_msg or "timeout" in error_msg.lower():
+                print("💡 Решение: Проблемы с сетью. Проверьте интернет-соединение")
+            else:
+                print("💡 Проверьте переменные окружения и доступность Telegram API")
+            
             return False
     
     async def disconnect(self):

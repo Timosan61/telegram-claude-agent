@@ -197,6 +197,49 @@ def show_new_analysis_form():
                 "keywords_filter": keywords_filter
             }
             
+            # Проверяем состояние Analytics Service перед запуском анализа
+            with st.spinner("Проверка Analytics Service..."):
+                health_response = api_client.make_request("/analytics/health")
+                
+                if not health_response:
+                    st.error("❌ Analytics Service недоступен")
+                    st.info("💡 Проверьте, что backend сервер запущен")
+                    return
+                
+                status = health_response.get("status", "Unknown")
+                
+                if "❌" in status:
+                    st.error(f"❌ Analytics Service: {health_response.get('message', 'Недоступен')}")
+                    
+                    # Подробная диагностика
+                    with st.expander("🔧 Диагностика Analytics Service"):
+                        st.json(health_response)
+                        
+                        credentials = health_response.get("credentials_check", {})
+                        missing_creds = [k for k, v in credentials.items() if not v]
+                        
+                        if missing_creds:
+                            st.error(f"❌ Отсутствуют переменные: {', '.join(missing_creds).upper()}")
+                            st.code("""
+# Добавьте в DigitalOcean App Platform:
+TELEGRAM_API_ID=your_api_id       # Число (например: 12345678)
+TELEGRAM_API_HASH=your_api_hash   # Строка (например: 1a2b3c4d...)  
+TELEGRAM_PHONE=your_phone         # С + (например: +1234567890)
+                            """)
+                        
+                        if "error_details" in health_response:
+                            st.text("Подробная ошибка:")
+                            st.code(health_response["error_details"])
+                    
+                    return
+                
+                elif "⚠️" in status:
+                    st.warning(f"⚠️ Analytics Service: {health_response.get('message', 'Частичные проблемы')}")
+                    if not st.checkbox("Продолжить несмотря на предупреждения"):
+                        return
+                else:
+                    st.success(f"✅ Analytics Service готов к работе")
+            
             # Запускаем прямой анализ канала
             with st.spinner("Запускаем анализ канала..."):
                 response = api_client.start_channel_analysis(analysis_request)
@@ -208,7 +251,12 @@ def show_new_analysis_form():
                     st.info(f"📝 **Сообщений для анализа:** {response['limit_messages']}")
                     st.info("⏳ Анализ выполняется в фоновом режиме. Переходите на вкладку '📊 Результаты' для просмотра прогресса.")
                 else:
-                    st.error("❌ Ошибка запуска анализа. Проверьте подключение к backend.")
+                    st.error("❌ Ошибка запуска анализа.")
+                    st.info("💡 Возможные причины:")
+                    st.write("• Analytics Service не подключен к Telegram")
+                    st.write("• Неверные Telegram API credentials")
+                    st.write("• Канал недоступен или приватный")
+                    st.write("• Проблемы с сетью или превышен лимит запросов")
 
 
 def show_analysis_results():

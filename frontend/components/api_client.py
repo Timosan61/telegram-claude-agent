@@ -37,7 +37,34 @@ class APIClient:
             elif response.status_code == 204:
                 return {}  # Для DELETE запросов
             else:
-                st.error(f"Ошибка API: {response.status_code} - {response.text}")
+                # Улучшенная обработка ошибок
+                error_text = response.text[:500]  # Ограничиваем длину для читаемости
+                
+                if response.status_code == 404:
+                    st.error(f"❌ Endpoint не найден: {endpoint}")
+                elif response.status_code == 500:
+                    st.error(f"❌ Внутренняя ошибка сервера")
+                elif response.status_code == 504:
+                    st.error(f"❌ Gateway Timeout (504)")
+                    st.info("💡 Сервер не отвечает. Возможные причины:")
+                    st.write("• DigitalOcean App Platform перезагружается")
+                    st.write("• Telegram API подключение заблокировано")
+                    st.write("• Превышен лимит запросов к Telegram")
+                    st.write("• Временные проблемы с сетью")
+                    st.info("🔄 Подождите 2-3 минуты и попробуйте снова")
+                else:
+                    st.error(f"❌ Ошибка API: {response.status_code}")
+                    
+                # Показываем подробности только если это JSON ошибка
+                try:
+                    error_json = response.json()
+                    if "detail" in error_json:
+                        st.error(f"Детали: {error_json['detail']}")
+                except:
+                    # Не JSON ответ, показываем HTML или текст только если это не 504
+                    if response.status_code != 504 and len(error_text) < 200:
+                        st.text(f"Ответ сервера: {error_text}")
+                
                 return None
         
         except requests.exceptions.ConnectionError:
