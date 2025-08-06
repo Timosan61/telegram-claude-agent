@@ -51,7 +51,7 @@ def show_new_analysis_form():
     
     # Получаем список активных чатов  
     chats_response = api_client.make_request("/chats/active")
-    available_chats = chats_response.get("active_chats", []) if chats_response else []
+    available_chats = chats_response if isinstance(chats_response, list) else []
     
     if not available_chats:
         st.warning("⚠️ Активные чаты не найдены")
