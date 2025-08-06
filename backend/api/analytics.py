@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 import io
 
-from services.analytics_service import analytics_service, AnalyticsConfig, ChatAnalytics
+from backend.services.analytics_service import analytics_service, AnalyticsConfig, ChatAnalytics
 
 router = APIRouter()
 
