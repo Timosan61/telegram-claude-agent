@@ -31,6 +31,16 @@ class ExportRequest(BaseModel):
     format: str = "csv"  # csv, json
 
 
+class DirectChannelAnalysisRequest(BaseModel):
+    channel_name: str  # @channel или ID или username
+    limit_messages: int = 1000
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    include_media: bool = False
+    include_replies: bool = True
+    keywords_filter: Optional[List[str]] = None
+
+
 @router.get("/health")
 async def analytics_health():
     """Проверка статуса сервиса аналитики"""
@@ -258,3 +268,76 @@ async def initialize_analytics_service():
             raise HTTPException(status_code=500, detail="Не удалось инициализировать сервис")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка инициализации: {str(e)}")
+
+
+@router.post("/analyze-channel", response_model=dict)
+async def analyze_channel_direct(request: DirectChannelAnalysisRequest, background_tasks: BackgroundTasks):
+    """
+    Прямой анализ канала/чата по имени без привязки к кампаниям
+    
+    Новая логика:
+    1. Принимаем название канала (@channel, username, или ID)
+    2. Подключаемся к каналу напрямую через Telethon
+    3. Загружаем указанное количество сообщений
+    4. Анализируем и возвращаем результат
+    """
+    try:
+        # Генерируем уникальный ID для анализа
+        analysis_id = str(uuid.uuid4())
+        
+        # Создаем конфигурацию для прямого анализа
+        config = AnalyticsConfig(
+            chat_id=request.channel_name,  # Используем channel_name как chat_id
+            chat_username=request.channel_name if request.channel_name.startswith('@') else None,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            limit_messages=request.limit_messages,
+            include_media=request.include_media,
+            include_replies=request.include_replies,
+            analyze_participants=False,  # Отключаем анализ участников для каналов
+            keywords_filter=request.keywords_filter
+        )
+        
+        # Запускаем анализ в фоне
+        background_tasks.add_task(run_analysis_task, config, analysis_id)
+        
+        return {
+            "analysis_id": analysis_id,
+            "status": "started",
+            "channel": request.channel_name,
+            "limit_messages": request.limit_messages,
+            "message": "Анализ канала запущен. Используйте analysis_id для получения результатов.",
+            "endpoints": {
+                "status": f"/analytics/analyze/{analysis_id}/status",
+                "results": f"/analytics/analyze/{analysis_id}/results"
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка запуска анализа канала: {str(e)}")
+
+
+@router.get("/channel-info/{channel_name}")
+async def get_channel_info(channel_name: str):
+    """
+    Получить информацию о канале/чате для предпросмотра перед анализом
+    """
+    try:
+        # Получаем базовую информацию о канале
+        channel_info = await analytics_service.get_channel_info(channel_name)
+        
+        if not channel_info:
+            raise HTTPException(status_code=404, detail="Канал не найден или недоступен")
+        
+        return {
+            "channel_name": channel_name,
+            "info": channel_info,
+            "accessible": True
+        }
+        
+    except Exception as e:
+        return {
+            "channel_name": channel_name,
+            "error": str(e),
+            "accessible": False
+        }

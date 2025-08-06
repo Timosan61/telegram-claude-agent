@@ -98,6 +98,72 @@ class AnalyticsService:
             print(f"❌ Ошибка получения списка чатов: {e}")
             return []
     
+    async def get_channel_info(self, channel_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Получить информацию о канале/чате для предпросмотра
+        
+        Args:
+            channel_name: Название канала (@channel, username, или ID)
+        
+        Returns:
+            Словарь с информацией о канале или None если не найден
+        """
+        if not self.is_connected:
+            await self.initialize()
+        
+        try:
+            # Нормализуем имя канала
+            if channel_name.isdigit():
+                # Если это число, используем как ID
+                entity = await self.client.get_entity(int(channel_name))
+            elif channel_name.startswith('@'):
+                # Убираем @ если есть
+                entity = await self.client.get_entity(channel_name)
+            else:
+                # Добавляем @ если нет
+                entity = await self.client.get_entity(f"@{channel_name}")
+            
+            # Получаем детальную информацию
+            channel_info = {
+                "id": str(entity.id),
+                "title": getattr(entity, 'title', 'Private Chat'),
+                "username": getattr(entity, 'username', None),
+                "type": type(entity).__name__,
+                "participant_count": getattr(entity, 'participants_count', None),
+                "description": getattr(entity, 'about', None),
+                "created_date": getattr(entity, 'date', None),
+                "access_hash": getattr(entity, 'access_hash', None) is not None,
+                "verified": getattr(entity, 'verified', False),
+                "restricted": getattr(entity, 'restricted', False),
+                "scam": getattr(entity, 'scam', False)
+            }
+            
+            # Получаем дополнительную информацию о канале
+            try:
+                # Пробуем получить последнее сообщение для проверки доступности
+                async for message in self.client.iter_messages(entity, limit=1):
+                    channel_info["last_message_date"] = message.date.isoformat() if message.date else None
+                    channel_info["accessible"] = True
+                    break
+                else:
+                    channel_info["accessible"] = False
+            except Exception:
+                channel_info["accessible"] = False
+                
+            return channel_info
+            
+        except ChannelPrivateError:
+            return {
+                "error": "Канал приватный или недоступен",
+                "accessible": False
+            }
+        except Exception as e:
+            print(f"❌ Ошибка получения информации о канале {channel_name}: {e}")
+            return {
+                "error": f"Канал не найден: {str(e)}",
+                "accessible": False
+            }
+    
     async def analyze_chat(self, config: AnalyticsConfig) -> ChatAnalytics:
         """Выполнить анализ чата"""
         if not self.is_connected:

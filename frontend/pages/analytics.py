@@ -47,49 +47,61 @@ def show_analytics_page():
 
 def show_new_analysis_form():
     """Форма для создания нового анализа"""
-    st.subheader("🔍 Создание нового анализа")
+    st.subheader("🔍 Прямой анализ канала")
+    st.markdown("Введите название канала и параметры анализа. Кампании мониторинга не требуются.")
     
-    # Получаем список активных чатов  
-    chats_response = api_client.make_request("/chats/active")
-    available_chats = chats_response if isinstance(chats_response, list) else []
-    
-    if not available_chats:
-        st.warning("⚠️ Активные чаты не найдены")
-        st.info("💡 Настройте кампании мониторинга для появления чатов")
-        if st.button("🔄 Обновить список чатов"):
-            st.rerun()
-        return
-    
-    # Форма создания анализа
-    with st.form("new_analysis_form"):
-        st.write("**Выберите чат для анализа:**")
+    # Форма создания анализа с прямым вводом канала
+    with st.form("direct_channel_analysis_form"):
+        st.write("**Введите канал для анализа:**")
         
-        # Выбор чата
-        chat_options = {}
-        for chat in available_chats:
-            display_name = f"{chat['title']} ({chat['type']})"
-            if chat.get('username'):
-                display_name += f" @{chat['username']}"
-            chat_options[display_name] = chat
+        # Прямой ввод канала
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            channel_name = st.text_input(
+                "Название канала:",
+                placeholder="@channel_name или channel_id",
+                help="Введите @username канала, ID или просто username без @"
+            )
         
-        selected_chat_display = st.selectbox(
-            "Чат:",
-            options=list(chat_options.keys()),
-            help="Выберите чат для анализа из списка доступных"
-        )
+        with col2:
+            if st.form_submit_button("🔍 Проверить канал"):
+                if channel_name.strip():
+                    # Проверяем доступность канала
+                    with st.spinner("Проверяем канал..."):
+                        channel_info = api_client.make_request(f"/channel-info/{channel_name.strip()}")
+                        
+                        if channel_info and channel_info.get("accessible"):
+                            st.success("✅ Канал найден и доступен")
+                            info = channel_info.get("info", {})
+                            st.write(f"**Название:** {info.get('title', 'N/A')}")
+                            if info.get('participant_count'):
+                                st.write(f"**Участников:** {info['participant_count']}")
+                            st.session_state.verified_channel = channel_name.strip()
+                            st.session_state.channel_info = channel_info
+                        else:
+                            error_msg = channel_info.get("error", "Канал недоступен") if channel_info else "Ошибка проверки"
+                            st.error(f"❌ {error_msg}")
+                            if "verified_channel" in st.session_state:
+                                del st.session_state.verified_channel
+                else:
+                    st.error("⚠️ Введите название канала")
         
-        selected_chat = chat_options[selected_chat_display] if selected_chat_display else None
-        
-        if selected_chat:
-            # Отображаем информацию о выбранном чате
+        # Показываем информацию о проверенном канале
+        if hasattr(st.session_state, 'verified_channel') and st.session_state.verified_channel == channel_name:
+            channel_info = st.session_state.get('channel_info', {}).get('info', {})
+            
+            st.write("---")
+            st.success(f"✅ Канал проверен: **{channel_info.get('title', channel_name)}**")
+            
+            # Отображаем информацию о канале
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.write(f"**ID:** `{selected_chat['id']}`")
+                st.write(f"**ID:** `{channel_info.get('id', 'N/A')}`")
             with col2:
-                st.write(f"**Тип:** {selected_chat['type']}")
+                st.write(f"**Тип:** {channel_info.get('type', 'N/A')}")
             with col3:
-                if selected_chat.get('participant_count'):
-                    st.write(f"**Участников:** {selected_chat['participant_count']}")
+                if channel_info.get('participant_count'):
+                    st.write(f"**Участников:** {channel_info['participant_count']}")
         
         st.write("---")
         
@@ -160,37 +172,55 @@ def show_new_analysis_form():
         # Кнопка запуска анализа
         submit_button = st.form_submit_button("🚀 Запустить анализ", type="primary")
         
-        if submit_button and selected_chat:
-            # Подготовка данных запроса
+        if submit_button:
+            # Проверяем что канал указан и проверен
+            if not channel_name.strip():
+                st.error("⚠️ Введите название канала")
+                return
+            
+            # Рекомендуем сначала проверить канал
+            if not (hasattr(st.session_state, 'verified_channel') and 
+                    st.session_state.verified_channel == channel_name.strip()):
+                st.warning("⚠️ Рекомендуется сначала проверить канал кнопкой '🔍 Проверить канал'")
+                # Но позволяем продолжить анализ
+            
+            # Подготовка данных запроса для прямого анализа канала
             keywords_filter = [kw.strip() for kw in keywords_text.split('\\n') if kw.strip()] if keywords_text else None
             
             analysis_request = {
-                "chat_id": selected_chat["id"],
-                "chat_username": selected_chat.get("username"),
+                "channel_name": channel_name.strip(),
+                "limit_messages": int(limit_messages),
                 "start_date": start_date.isoformat() if start_date else None,
                 "end_date": end_date.isoformat() if end_date else None,
-                "limit_messages": limit_messages,
                 "include_media": include_media,
                 "include_replies": include_replies,
-                "analyze_participants": analyze_participants,
                 "keywords_filter": keywords_filter
             }
             
-            # Демо режим - аналитика недоступна в текущей версии
-            with st.spinner("Анализ недоступен..."):
-                st.error("❌ Функция аналитики чатов находится в разработке")
-                st.info("💡 В текущей версии доступны базовые функции мониторинга")
-                response = None
+            # Запускаем прямой анализ канала
+            with st.spinner("Запускаем анализ канала..."):
+                response = api_client.make_request(
+                    "/analyze-channel", 
+                    method="POST", 
+                    json=analysis_request
+                )
                 
-                return  # Функция недоступна
+                if response:
+                    st.success("✅ Анализ запущен!")
+                    st.info(f"🔍 **ID анализа:** `{response['analysis_id']}`")
+                    st.info(f"📊 **Канал:** {response['channel']}")
+                    st.info(f"📝 **Сообщений для анализа:** {response['limit_messages']}")
+                    st.info("⏳ Анализ выполняется в фоновом режиме. Переходите на вкладку '📊 Результаты' для просмотра прогресса.")
+                else:
+                    st.error("❌ Ошибка запуска анализа. Проверьте подключение к backend.")
 
 
 def show_analysis_results():
     """Отображение результатов анализа"""
     st.subheader("📊 Результаты анализа")
     
-    # Получаем список всех анализов
-    analyses_response = api_client.make_request("/logs/stats/overview")
+    # Получаем список всех анализов из analytics API
+    analyses_response = api_client.make_request("/analytics/analyze")
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:
@@ -200,9 +230,8 @@ def show_analysis_results():
     # Выбор анализа для просмотра
     analysis_options = {}
     for analysis in analyses:
-        display_name = f"{analysis['chat_title']} - {analysis['total_messages']} сообщений"
-        if analysis['status'] == 'error':
-            display_name += " ❌"
+        status_icon = "✅" if analysis['status'] == 'completed' else "🔄" if analysis['status'] == 'in_progress' else "❌"
+        display_name = f"{status_icon} {analysis['chat_title']} - {analysis['total_messages']} сообщений"
         analysis_options[display_name] = analysis['analysis_id']
     
     selected_analysis_display = st.selectbox(
@@ -214,6 +243,19 @@ def show_analysis_results():
         return
     
     analysis_id = analysis_options[selected_analysis_display]
+    
+    # Проверяем статус анализа
+    status_response = api_client.make_request(f"/analytics/analyze/{analysis_id}/status")
+    
+    if status_response:
+        if status_response['status'] == 'in_progress':
+            st.info("⏳ Анализ еще выполняется. Обновите страницу через некоторое время.")
+            if st.button("🔄 Обновить", key=f"refresh_{analysis_id}"):
+                st.rerun()
+            return
+        elif status_response['status'] == 'error':
+            st.error(f"❌ Ошибка анализа: {status_response.get('error', 'Неизвестная ошибка')}")
+            return
     
     # Получаем детальные результаты
     results_response = api_client.make_request(f"/analytics/analyze/{analysis_id}/results")
@@ -432,8 +474,8 @@ def show_analysis_history():
     """История анализов"""
     st.subheader("📋 История анализов")
     
-    # Получаем список всех анализов
-    analyses_response = api_client.make_request("/logs/stats/overview")
+    # Получаем список всех анализов из analytics API
+    analyses_response = api_client.make_request("/analytics/analyze")
     analyses = analyses_response.get("analyses", []) if analyses_response else []
     
     if not analyses:
@@ -443,7 +485,7 @@ def show_analysis_history():
     # Отображаем в виде таблицы
     history_data = []
     for analysis in analyses:
-        status_icon = "✅" if analysis["status"] == "completed" else "❌"
+        status_icon = "✅" if analysis["status"] == "completed" else "🔄" if analysis["status"] == "in_progress" else "❌"
         history_data.append({
             "Статус": f"{status_icon} {analysis['status']}",
             "Чат": analysis["chat_title"],
@@ -460,10 +502,13 @@ def show_analysis_history():
         if st.button("🗑️ Очистить всю историю", type="secondary"):
             if st.session_state.get("confirm_clear_history"):
                 # Удаляем все анализы
+                deleted_count = 0
                 for analysis in analyses:
-                    api_client.make_request(f"/analytics/analyze/{analysis['analysis_id']}", method="DELETE")
+                    response = api_client.make_request(f"/analytics/analyze/{analysis['analysis_id']}", method="DELETE")
+                    if response:
+                        deleted_count += 1
                 
-                st.success("✅ История очищена")
+                st.success(f"✅ История очищена ({deleted_count} анализов удалено)")
                 st.session_state.confirm_clear_history = False
                 st.rerun()
             else:

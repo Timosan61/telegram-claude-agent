@@ -2,9 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
+import logging
+from datetime import datetime
 
 from database.models.base import get_db
 from database.models.company import CompanySettings
+
+# Настройка логирования для операций с компанией
+logger = logging.getLogger("company_operations")
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 router = APIRouter()
 
@@ -51,33 +60,40 @@ class AIProviderUpdate(BaseModel):
 @router.get("/settings", response_model=dict)
 async def get_company_settings(db: Session = Depends(get_db)):
     """Получить настройки компании"""
-    # Получаем первую запись (предполагаем одну компанию)
-    settings = db.query(CompanySettings).first()
-    
-    if not settings:
-        # Возвращаем дефолтные настройки если их нет
-        return {
-            "name": "",
-            "description": "",
-            "website": "",
-            "email": "",
-            "timezone": "UTC",
-            "telegram_accounts": [],
-            "ai_providers": {
-                "openai": {"enabled": False, "default_model": "gpt-4"},
-                "claude": {"enabled": False, "default_agent": ""}
-            },
-            "default_settings": {
-                "context_messages_count": 3,
-                "response_delay": 1.0,
-                "auto_reply": True,
-                "work_hours_enabled": False,
-                "work_start": "09:00",
-                "work_end": "18:00"
+    try:
+        # Получаем первую запись (предполагаем одну компанию)
+        settings = db.query(CompanySettings).first()
+        
+        if not settings:
+            logger.info("🔍 Настройки компании не найдены в БД, возвращаем дефолтные")
+            # Возвращаем дефолтные настройки если их нет
+            return {
+                "name": "",
+                "description": "",
+                "website": "",
+                "email": "",
+                "timezone": "UTC",
+                "telegram_accounts": [],
+                "ai_providers": {
+                    "openai": {"enabled": False, "default_model": "gpt-4"},
+                    "claude": {"enabled": False, "default_agent": ""}
+                },
+                "default_settings": {
+                    "context_messages_count": 3,
+                    "response_delay": 1.0,
+                    "auto_reply": True,
+                    "work_hours_enabled": False,
+                    "work_start": "09:00",
+                    "work_end": "18:00"
+                }
             }
-        }
+        
+        logger.info(f"✅ Загружены настройки компании ID={settings.id}, name='{settings.name}'")
+        return settings.to_dict()
     
-    return settings.to_dict()
+    except Exception as e:
+        logger.error(f"❌ Ошибка получения настроек компании: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка получения настроек: {str(e)}")
 
 
 @router.put("/settings", response_model=dict)
@@ -86,23 +102,42 @@ async def update_company_settings(
     db: Session = Depends(get_db)
 ):
     """Обновить настройки компании"""
-    # Получаем существующие настройки или создаем новые
-    settings = db.query(CompanySettings).first()
+    try:
+        # Получаем существующие настройки или создаем новые
+        settings = db.query(CompanySettings).first()
+        
+        update_data = settings_data.dict(exclude_unset=True)
+        logger.info(f"🔄 Получен запрос обновления настроек компании: {update_data}")
+        
+        if not settings:
+            # Создаем новые настройки
+            logger.info("📝 Создание новой записи настроек компании")
+            settings = CompanySettings()
+            db.add(settings)
+        else:
+            logger.info(f"🔄 Обновление существующих настроек компании ID={settings.id}")
+        
+        # Обновление полей
+        for field, value in update_data.items():
+            old_value = getattr(settings, field, None)
+            setattr(settings, field, value)
+            logger.info(f"  • {field}: '{old_value}' → '{value}'")
+        
+        # Сохранение в БД
+        logger.info("💾 Сохранение изменений в базу данных...")
+        db.commit()
+        db.refresh(settings)
+        
+        result = settings.to_dict()
+        logger.info(f"✅ Настройки компании успешно сохранены ID={settings.id}, name='{settings.name}'")
+        logger.info(f"📊 Результат: {result}")
+        
+        return result
     
-    if not settings:
-        # Создаем новые настройки
-        settings = CompanySettings()
-        db.add(settings)
-    
-    # Обновление полей
-    update_data = settings_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(settings, field, value)
-    
-    db.commit()
-    db.refresh(settings)
-    
-    return settings.to_dict()
+    except Exception as e:
+        logger.error(f"❌ Ошибка обновления настроек компании: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения настроек: {str(e)}")
 
 
 @router.post("/telegram-accounts", response_model=dict)

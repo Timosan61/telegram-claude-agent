@@ -1211,19 +1211,56 @@ def show_company_page():
         )
         
         if st.form_submit_button("💾 Сохранить информацию", type="primary"):
+            # Расширенная валидация
+            validation_errors = []
+            
+            if not company_name.strip():
+                validation_errors.append("Название компании обязательно для заполнения")
+            
+            if company_website and not (company_website.startswith('http://') or company_website.startswith('https://')):
+                validation_errors.append("Веб-сайт должен начинаться с http:// или https://")
+            
+            if company_email and '@' not in company_email:
+                validation_errors.append("Введите корректный email адрес")
+            
+            if validation_errors:
+                for error in validation_errors:
+                    st.error(f"❌ {error}")
+                return
+            
             info_data = {
-                "name": company_name,
-                "website": company_website,
-                "email": company_email,
+                "name": company_name.strip(),
+                "website": company_website.strip() if company_website else "",
+                "email": company_email.strip() if company_email else "",
                 "timezone": timezone,
-                "description": company_description
+                "description": company_description.strip() if company_description else ""
             }
             
-            response = make_api_request("/company/settings", method="PUT", data=info_data)
+            # Показываем индикатор загрузки
+            with st.spinner("Сохранение данных компании..."):
+                response = make_api_request("/company/settings", method="PUT", data=info_data)
+            
             if response:
-                st.success("✅ Информация о компании сохранена!")
-                time.sleep(1)
+                st.success("✅ Информация о компании успешно сохранена!")
+                st.balloons()  # Визуальная анимация успеха
+                
+                # Подробная информация о сохраненных данных
+                with st.expander("📋 Сохраненные данные", expanded=False):
+                    st.write(f"**Название:** {info_data['name']}")
+                    if info_data['website']:
+                        st.write(f"**Веб-сайт:** {info_data['website']}")
+                    if info_data['email']:
+                        st.write(f"**Email:** {info_data['email']}")
+                    st.write(f"**Часовой пояс:** {info_data['timezone']}")
+                    if info_data['description']:
+                        st.write(f"**Описание:** {info_data['description']}")
+                    st.write(f"**Время сохранения:** {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
+                
+                time.sleep(2)  # Даем время прочитать сообщение
                 st.rerun()
+            else:
+                st.error("❌ Ошибка сохранения данных")
+                st.warning("💡 Проверьте подключение к серверу и попробуйте еще раз")
     
     st.divider()
     
@@ -1285,21 +1322,65 @@ def show_company_page():
             )
             
             if st.form_submit_button("📱 Добавить аккаунт", type="primary"):
-                if all([account_name, phone_number, api_id, api_hash]):
-                    account_data = {
-                        "name": account_name,
-                        "phone": phone_number,
-                        "api_id": api_id,
-                        "api_hash": api_hash
-                    }
-                    
+                # Расширенная валидация Telegram аккаунта
+                validation_errors = []
+                
+                if not account_name.strip():
+                    validation_errors.append("Название аккаунта обязательно")
+                elif len(account_name.strip()) < 2:
+                    validation_errors.append("Название аккаунта должно содержать минимум 2 символа")
+                
+                if not phone_number.strip():
+                    validation_errors.append("Номер телефона обязателен")
+                elif not phone_number.strip().startswith('+'):
+                    validation_errors.append("Номер телефона должен начинаться с +")
+                elif len(phone_number.strip()) < 10:
+                    validation_errors.append("Номер телефона слишком короткий")
+                
+                if not api_id.strip():
+                    validation_errors.append("Telegram API ID обязателен")
+                elif not api_id.strip().isdigit():
+                    validation_errors.append("API ID должен содержать только цифры")
+                
+                if not api_hash.strip():
+                    validation_errors.append("Telegram API Hash обязателен")
+                elif len(api_hash.strip()) != 32:
+                    validation_errors.append("API Hash должен содержать 32 символа")
+                
+                if validation_errors:
+                    for error in validation_errors:
+                        st.error(f"❌ {error}")
+                    return
+                
+                account_data = {
+                    "name": account_name.strip(),
+                    "phone": phone_number.strip(),
+                    "api_id": api_id.strip(),
+                    "api_hash": api_hash.strip()
+                }
+                
+                # Показываем индикатор загрузки
+                with st.spinner("Добавление Telegram аккаунта..."):
                     response = make_api_request("/company/telegram-accounts", method="POST", data=account_data)
-                    if response:
-                        st.success("✅ Аккаунт добавлен! Потребуется верификация по SMS.")
-                        time.sleep(1)
-                        st.rerun()
+                
+                if response:
+                    st.success("✅ Telegram аккаунт успешно добавлен!")
+                    st.info("📱 При первом использовании потребуется верификация по SMS")
+                    st.balloons()
+                    
+                    # Показываем информацию о добавленном аккаунте
+                    with st.expander("📋 Добавленный аккаунт", expanded=True):
+                        st.write(f"**Название:** {account_data['name']}")
+                        st.write(f"**Телефон:** {account_data['phone']}")
+                        st.write(f"**API ID:** {account_data['api_id']}")
+                        st.write(f"**Статус:** 🔴 Требует верификации")
+                        st.write(f"**Время добавления:** {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
+                    
+                    time.sleep(2)
+                    st.rerun()
                 else:
-                    st.error("❌ Все поля обязательны для заполнения")
+                    st.error("❌ Ошибка добавления аккаунта")
+                    st.warning("💡 Проверьте правильность введенных данных и подключение к серверу")
     
     st.divider()
     
@@ -1346,6 +1427,20 @@ def show_company_page():
                 )
             
             if st.form_submit_button("💾 Сохранить настройки OpenAI"):
+                # Валидация настроек OpenAI
+                validation_errors = []
+                
+                if openai_enabled:
+                    if 'openai_api_key' not in locals() or not openai_api_key:
+                        validation_errors.append("API ключ OpenAI обязателен при включении сервиса")
+                    elif not openai_api_key.startswith('sk-'):
+                        validation_errors.append("API ключ OpenAI должен начинаться с 'sk-'")
+                
+                if validation_errors:
+                    for error in validation_errors:
+                        st.error(f"❌ {error}")
+                    return
+                
                 openai_data = {
                     "enabled": openai_enabled,
                     "default_model": default_model if openai_enabled else "gpt-4",
@@ -1356,9 +1451,30 @@ def show_company_page():
                 if openai_enabled and 'openai_api_key' in locals():
                     openai_data["api_key"] = openai_api_key
                 
-                response = make_api_request("/company/ai-providers/openai", method="PUT", data=openai_data)
+                # Показываем индикатор загрузки
+                with st.spinner("Сохранение настроек OpenAI..."):
+                    response = make_api_request("/company/ai-providers/openai", method="PUT", data=openai_data)
+                
                 if response:
-                    st.success("✅ Настройки OpenAI сохранены!")
+                    st.success("✅ Настройки OpenAI успешно сохранены!")
+                    if openai_enabled:
+                        st.info("🤖 OpenAI готов к использованию в кампаниях")
+                        st.balloons()
+                        
+                        # Показываем сохраненные настройки
+                        with st.expander("⚙️ Сохраненные настройки OpenAI", expanded=False):
+                            st.write(f"**Статус:** {'🟢 Включен' if openai_enabled else '🔴 Отключен'}")
+                            if openai_enabled:
+                                st.write(f"**Модель:** {default_model}")
+                                st.write(f"**Макс. токенов:** {max_tokens}")
+                                st.write(f"**Температура:** {temperature}")
+                                st.write("**API ключ:** sk-***••••••••")
+                            st.write(f"**Время сохранения:** {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
+                    else:
+                        st.info("🔴 OpenAI отключен")
+                else:
+                    st.error("❌ Ошибка сохранения настроек OpenAI")
+                    st.warning("💡 Проверьте правильность API ключа и подключение к серверу")
     
     with tab2:
         claude_settings = company_data.get('ai_providers', {}).get('claude', {})
@@ -1390,18 +1506,53 @@ def show_company_page():
                 )
             
             if st.form_submit_button("💾 Сохранить настройки Claude"):
+                # Валидация настроек Claude
+                validation_errors = []
+                
+                if claude_enabled:
+                    if 'claude_api_key' not in locals() or not claude_api_key:
+                        validation_errors.append("API ключ Anthropic обязателен при включении Claude")
+                    elif not claude_api_key.startswith('sk-ant-'):
+                        validation_errors.append("API ключ Anthropic должен начинаться с 'sk-ant-'")
+                
+                if validation_errors:
+                    for error in validation_errors:
+                        st.error(f"❌ {error}")
+                    return
+                
                 claude_data = {
                     "enabled": claude_enabled,
-                    "default_agent": default_agent if claude_enabled else "",
+                    "default_agent": default_agent.strip() if claude_enabled and default_agent else "",
                     "max_tokens": max_tokens if claude_enabled else 2000
                 }
                 
                 if claude_enabled and 'claude_api_key' in locals():
                     claude_data["api_key"] = claude_api_key
                 
-                response = make_api_request("/company/ai-providers/claude", method="PUT", data=claude_data)
+                # Показываем индикатор загрузки
+                with st.spinner("Сохранение настроек Claude..."):
+                    response = make_api_request("/company/ai-providers/claude", method="PUT", data=claude_data)
+                
                 if response:
-                    st.success("✅ Настройки Claude сохранены!")
+                    st.success("✅ Настройки Claude успешно сохранены!")
+                    if claude_enabled:
+                        st.info("🧠 Claude готов к использованию в кампаниях")
+                        st.balloons()
+                        
+                        # Показываем сохраненные настройки
+                        with st.expander("⚙️ Сохраненные настройки Claude", expanded=False):
+                            st.write(f"**Статус:** {'🟢 Включен' if claude_enabled else '🔴 Отключен'}")
+                            if claude_enabled:
+                                if claude_data['default_agent']:
+                                    st.write(f"**Agent ID:** {claude_data['default_agent']}")
+                                st.write(f"**Макс. токенов:** {claude_data['max_tokens']}")
+                                st.write("**API ключ:** sk-ant-***••••••••")
+                            st.write(f"**Время сохранения:** {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
+                    else:
+                        st.info("🔴 Claude отключен")
+                else:
+                    st.error("❌ Ошибка сохранения настроек Claude")
+                    st.warning("💡 Проверьте правильность API ключа и подключение к серверу")
     
     st.divider()
     
