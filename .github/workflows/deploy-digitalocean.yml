@@ -39,7 +39,7 @@ jobs:
     - name: Deploy to DigitalOcean App Platform
       uses: digitalocean/app_action@v1.1.5
       with:
-        app_name: answerbot-magph
+        app_name: 090c79a2-012d-41fa-a89f-fca3017701e2
         token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
         images: '[
           {
@@ -65,5 +65,5 @@ jobs:
       run: |
         echo "🔍 Проверка деплоя..."
         curl -f https://answerbot-magph.ondigitalocean.app/health || echo "❌ Health check failed"
-        curl -f https://answerbot-magph.ondigitalocean.app/company/settings || echo "❌ Company settings check failed"
+        curl -f https://answerbot-magph.ondigitalocean.app/analytics/health || echo "❌ Analytics health check failed"
         echo "✅ Деплой проверен!"
