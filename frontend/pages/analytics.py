@@ -15,7 +15,7 @@ def show_analytics_page():
     st.markdown("Анализ сообщений, участников и активности в Telegram-чатах")
     
     # Проверяем статус сервиса аналитики
-    analytics_status = api_client.make_request("/health")
+    analytics_status = api_client.make_request("/analytics/health")
     
     if not analytics_status:
         st.error("❌ Сервис аналитики недоступен")
@@ -23,8 +23,8 @@ def show_analytics_page():
         return
     
     # Инициализация сервиса если необходимо
-    telegram_status = analytics_status.get("telegram_status", {}) if analytics_status else {}
-    if not telegram_status.get("connected", False):
+    is_connected = analytics_status.get("is_connected", False) if analytics_status else False
+    if not is_connected:
         st.warning("⚠️ Сервис аналитики не подключен к Telegram")
         if st.button("🔄 Инициализировать сервис аналитики"):
             with st.spinner("Подключение к Telegram..."):

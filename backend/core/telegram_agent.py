@@ -105,7 +105,8 @@ class TelegramAgent:
             print(f"⚠️ OpenAI Client недоступен: {e}")
             self.openai_client = None
         
-        self.memory_manager = ZepMemoryManager()
+        # Memory manager временно отключен
+        self.memory_manager = None
         
         # Кэш активных кампаний
         self.active_campaigns: List[Campaign] = []
