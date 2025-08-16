@@ -1,6 +1,7 @@
 """
 Главный файл FastAPI сервера для DigitalOcean App Platform
 Адаптирован для работы с переменными окружения и StringSession
+Обновлен для работы с новым токеном DigitalOcean - 2025-08-16
 """
 
 from fastapi import FastAPI, Depends, HTTPException
