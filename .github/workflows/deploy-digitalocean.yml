@@ -10,6 +10,7 @@ on:
       - 'requirements_backend.txt'
       - 'Procfile'
       - 'runtime.txt'
+      - 'analytics_session.session'
       - '.github/workflows/deploy-digitalocean.yml'
 
 jobs:
