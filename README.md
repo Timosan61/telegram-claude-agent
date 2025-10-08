@@ -358,3 +358,5 @@ MIT License - см. [LICENSE](LICENSE) файл.
 3. Укажите версию проекта и шаги воспроизведения
 
 **Made with ❤️ for intelligent Telegram automation**
+
+<!-- Security scan triggered at 2025-10-08 08:49:49 -->
